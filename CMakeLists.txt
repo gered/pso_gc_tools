@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(psogc_quest_tools C)
+project(psogc_tools C)
 
 set(CMAKE_C_STANDARD 99)
 
