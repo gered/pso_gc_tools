@@ -6,6 +6,8 @@
 #include <iconv.h>
 #include <sylverant/prs.h>
 
+#include "utils.h"
+
 typedef struct __attribute__((packed)) {
 	uint32_t object_code_offset;
 	uint32_t function_offset_table_offset;
@@ -50,34 +52,6 @@ int sjis_to_utf8(char *s, size_t length) {
 	return 0;
 }
 
-int get_filesize(const char *filename, size_t *out_size) {
-	FILE *fp = fopen(filename, "rb");
-	if (!fp)
-		return 1;
-
-	fseek(fp, 0, SEEK_END);
-	*out_size = ftell(fp);
-	fclose(fp);
-
-	return 0;
-}
-
-const char* path_to_filename(const char *path) {
-	const char *pos = strrchr(path, '/');
-	if (pos) {
-		return pos+1;
-	} else {
-		return path;
-	}
-}
-
-char* append_file_extension(const char *filename, const char *extension) {
-	char *new_filename = malloc(strlen(filename) + strlen(extension));
-	strcpy(new_filename, filename);
-	strcat(new_filename, extension);
-	return new_filename;
-}
-
 void generate_qst_header(const char *src_file, size_t src_file_size, QUEST_BIN_HEADER *bin_header, QST_HEADER *out_header) {
 	memset(out_header, 0, sizeof(QST_HEADER));
 
@@ -105,7 +79,7 @@ void generate_qst_header(const char *src_file, size_t src_file_size, QUEST_BIN_H
 }
 
 int write_qst_header(const char *src_file, QST_HEADER *header) {
-	char *header_file = append_file_extension(src_file, ".hdr");
+	char *header_file = append_string(src_file, ".hdr");
 
 	FILE *fp = fopen(header_file, "wb");
 	if (!fp) {
