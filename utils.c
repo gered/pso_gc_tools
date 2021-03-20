@@ -3,13 +3,15 @@
 #include <string.h>
 #include <malloc.h>
 
-void* read_file(const char *filename, uint32_t *out_file_size) {
-	if (!out_file_size)
-		return NULL;
+#include "utils.h"
+
+int read_file(const char *filename, uint8_t** out_file_data, uint32_t *out_file_size) {
+	if (!out_file_size || !out_file_data)
+		return ERROR_INVALID_PARAMS;
 
 	FILE *fp = fopen(filename, "rb");
 	if (!fp)
-		return NULL;
+		return ERROR_FILE_NOT_FOUND;
 
 	fseek(fp, 0, SEEK_END);
 	*out_file_size = ftell(fp);
@@ -30,19 +32,23 @@ void* read_file(const char *filename, uint32_t *out_file_size) {
 		}
 	} while (read);
 
-	return result;
+	*out_file_data = result;
+	return SUCCESS;
 }
 
 int get_filesize(const char *filename, size_t *out_size) {
+	if (!filename || !out_size)
+		return ERROR_INVALID_PARAMS;
+
 	FILE *fp = fopen(filename, "rb");
 	if (!fp)
-		return 1;
+		return ERROR_FILE_NOT_FOUND;
 
 	fseek(fp, 0, SEEK_END);
 	*out_size = ftell(fp);
 	fclose(fp);
 
-	return 0;
+	return SUCCESS;
 }
 
 const char* path_to_filename(const char *path) {

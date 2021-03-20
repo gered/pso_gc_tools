@@ -17,15 +17,15 @@ int main(int argc, char *argv[]) {
 
 	uint32_t server_data_size = 0;
 	uint32_t client_data_size = 0;
+	uint8_t *server_data;
+	uint8_t *client_data;
 
-	uint8_t *server_data = read_file(server_packet_file, &server_data_size);
-	if (!server_data) {
+	if (read_file(server_packet_file, &server_data, &server_data_size)) {
 		printf("Error reading server packet data file: %s\n", server_packet_file);
 		return 1;
 	}
 
-	uint8_t *client_data = read_file(client_packet_file, &client_data_size);
-	if (!client_data) {
+	if (read_file(client_packet_file, &client_data, &client_data_size)) {
 		printf("Error reading client packet data file: %s\n", client_packet_file);
 		free(server_data);
 		return 1;
