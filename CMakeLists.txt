@@ -5,9 +5,16 @@ set(CMAKE_C_STANDARD 99)
 
 include_directories(/usr/local/include)
 
+find_package(Iconv REQUIRED)
+
 find_library(SYLVERANT_LIBRARY sylverant REQUIRED)
 
 # decrypt_packets
 add_executable(decrypt_packets decrypt_packets/main.c)
 target_link_libraries(decrypt_packets ${SYLVERANT_LIBRARY})
 
+# gen_qst_header
+add_executable(gen_qst_header gen_qst_header/main.c)
+target_link_libraries(gen_qst_header ${SYLVERANT_LIBRARY} ${ICONV_LIBRARIES})
+target_compile_definitions(gen_qst_header PRIVATE ICONV_CONST=${ICONV_CONST})
+target_include_directories(gen_qst_header PRIVATE ${ICONV_INCLUDE_DIR})
