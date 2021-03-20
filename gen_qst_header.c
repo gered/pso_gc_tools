@@ -7,31 +7,12 @@
 #include <sylverant/prs.h>
 
 #include "utils.h"
-
-typedef struct __attribute__((packed)) {
-	uint32_t object_code_offset;
-	uint32_t function_offset_table_offset;
-	uint32_t bin_size;
-	uint32_t xffffffff;
-	uint16_t language;
-	uint16_t quest_number;
-	char name[32];
-	char short_description[128];
-	char long_description[288];
-} QUEST_BIN_HEADER;
-
-typedef struct __attribute__((packed)) {
-	uint8_t pkt_id;
-	uint8_t pkt_flags;
-	uint16_t pkt_size;
-	char name[32];
-	uint16_t unused;
-	uint16_t flags;
-	char filename[16];
-	uint32_t size;
-} QST_HEADER;
+#include "quests.h"
 
 int sjis_to_utf8(char *s, size_t length) {
+	if (!s)
+		return ERROR_INVALID_PARAMS;
+
 	iconv_t conv;
 	size_t in_size, out_size;
 
@@ -49,49 +30,18 @@ int sjis_to_utf8(char *s, size_t length) {
 	memcpy(s, outbuf, length);
 	free(outbuf);
 
-	return 0;
+	return SUCCESS;
 }
 
-void generate_qst_header(const char *src_file, size_t src_file_size, QUEST_BIN_HEADER *bin_header, QST_HEADER *out_header) {
-	memset(out_header, 0, sizeof(QST_HEADER));
-
-	// 0xA6 = download to memcard, 0x44 = download for online play
-	// (quest file data chunks must then be encoded accordingly. 0xA6 = use 0xA7, and 0x44 = use 0x13)
-	out_header->pkt_id = 0xa6;
-	out_header->pkt_size = sizeof(QST_HEADER);
-
-	// khyller sets .dat header value to 0xC9, .bin header value to 0x88
-	// newserv sets both to 0x00
-	// sylverant appears to set it differently per quest, logic/reasoning is unknown to me
-	// ... so, this value is probably unimportant
-	out_header->pkt_flags = 0;
-
-	// khyller sets .dat header value to 0x02, .bin header value to 0x00
-	// newserv sets both to 0x02
-	// sylverant sets both to 0x00
-	// ... and so, this value is also probably unimportant
-	out_header->flags = 0;
-
-	out_header->size = src_file_size;
-
-	memcpy(out_header->name, bin_header->name, sizeof(out_header->name));
-	memcpy(out_header->filename, src_file, strlen(src_file));
-}
-
-int write_qst_header(const char *src_file, QST_HEADER *header) {
-	char *header_file = append_string(src_file, ".hdr");
-
-	FILE *fp = fopen(header_file, "wb");
-	if (!fp) {
-		printf("Error creating header file: %s\n", header_file);
-		free(header_file);
-		return 1;
-	}
+int write_qst_header(const char *filename, const QST_HEADER *header) {
+	FILE *fp = fopen(filename, "wb");
+	if (!fp)
+		return ERROR_CREATING_FILE;
 
 	fwrite(header, sizeof(QST_HEADER), 1, fp);
 	fclose(fp);
 
-	free(header_file);
+	return SUCCESS;
 }
 
 int main(int argc, char *argv[]) {
@@ -167,13 +117,17 @@ int main(int argc, char *argv[]) {
 	printf("Quest: id=%d, language=0x%04x, name=%s\n", bin_header->quest_number, bin_header->language, bin_header->name);
 
 	QST_HEADER qst_bin_header, qst_dat_header;
+
 	generate_qst_header(bin_base_filename, bin_compressed_size, bin_header, &qst_bin_header);
 	generate_qst_header(dat_base_filename, dat_compressed_size, bin_header, &qst_dat_header);
 
-	if (write_qst_header(bin_file, &qst_bin_header)) {
+	char *bin_hdr_file = append_string(bin_file, ".hdr");
+	char *dat_hdr_file = append_string(dat_file, ".hdr");
+
+	if (write_qst_header(bin_hdr_file, &qst_bin_header)) {
 		return 1;
 	}
-	if (write_qst_header(dat_file, &qst_dat_header)) {
+	if (write_qst_header(dat_hdr_file, &qst_dat_header)) {
 		return 1;
 	}
 
