@@ -4,6 +4,7 @@
 #include <malloc.h>
 
 #include "utils.h"
+#include "retvals.h"
 
 int read_file(const char *filename, uint8_t** out_file_data, uint32_t *out_file_size) {
 	if (!out_file_size || !out_file_data)

@@ -3,10 +3,7 @@
 
 #include <stdint.h>
 
-#define SUCCESS                        0
-#define ERROR_INVALID_PARAMS           1
-#define ERROR_FILE_NOT_FOUND           2
-#define ERROR_CREATING_FILE            3
+#include "retvals.h"
 
 int read_file(const char *filename, uint8_t** out_file_data, uint32_t *out_file_size);
 int get_filesize(const char *filename, size_t *out_size);
