@@ -20,5 +20,5 @@ target_compile_definitions(gen_qst_header PRIVATE ICONV_CONST=${ICONV_CONST})
 target_include_directories(gen_qst_header PRIVATE ${ICONV_INCLUDE_DIR})
 
 # bindat_to_gcdl
-add_executable(bindat_to_gcdl bindat_to_gcdl.c quests.c utils.c)
+add_executable(bindat_to_gcdl bindat_to_gcdl.c quests.c fuzziqer_prs.c utils.c)
 target_link_libraries(bindat_to_gcdl ${SYLVERANT_LIBRARY})

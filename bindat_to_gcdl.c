@@ -6,11 +6,11 @@
 #include <malloc.h>
 
 #include <sylverant/encryption.h>
-#include <sylverant/prs.h>
+//#include <sylverant/prs.h>
+#include "fuzziqer_prs.h"
 
 #include "quests.h"
 #include "utils.h"
-#include "retvals.h"
 
 typedef struct __attribute__((packed)) {
 	uint32_t decompressed_size;
@@ -64,14 +64,14 @@ int main(int argc, char *argv[]) {
 	uint8_t *decompressed_bin;
 	uint32_t decompressed_bin_size, decompressed_dat_size;
 
-	result = prs_decompress_buf(compressed_bin, &decompressed_bin, compressed_bin_size);
+	result = fuzziqer_prs_decompress_buf(compressed_bin, &decompressed_bin, compressed_bin_size);
 	if (result < 0) {
 		printf("prs_decompress_buf() error %d with bin file data: %s\n", result, bin_filename);
 		return 1;
 	}
 	decompressed_bin_size = (uint32_t)result;
 
-	result = prs_decompress_size(compressed_dat, compressed_dat_size);
+	result = fuzziqer_prs_decompress_size(compressed_dat, compressed_dat_size);
 	if (result < 0) {
 		printf("prs_decompress_size() error %d with dat file data: %s\n", result, dat_filename);
 		return 1;
@@ -82,8 +82,6 @@ int main(int argc, char *argv[]) {
 	/** parse quest .bin header from decompressed .bin file data. also set the "download" flag in the .bin header **/
 
 	QUEST_BIN_HEADER *bin_header = (QUEST_BIN_HEADER*)decompressed_bin;
-	bin_header->download = 1;
-	printf("Quest: id=%d, download=%d, language=0x%02x, name=%s\n", bin_header->quest_number, bin_header->download, bin_header->language, bin_header->name);
 
 	// TODO: validations might need tweaking ...
 	if (bin_header->object_code_offset != 468) {
@@ -103,11 +101,16 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	bin_header->download = 1;  // gamecube pso client will not find quests on a memory card if this is not set!
+
+	printf("Quest: id=%d, download=%d, language=0x%02x, name=%s\n", bin_header->quest_number, bin_header->download, bin_header->language, bin_header->name);
+
+
 	/** re-compress bin data, so it includes our modified header "download" flag **/
 
 	uint8_t *recompressed_bin;
 
-	result = prs_compress(decompressed_bin, &recompressed_bin, decompressed_bin_size);
+	result = fuzziqer_prs_compress(decompressed_bin, &recompressed_bin, decompressed_bin_size);
 	if (result < 0) {
 		printf("prs_compress() error %d with modified bin file data: %s\n", result, bin_filename);
 		return 1;
@@ -177,6 +180,11 @@ int main(int argc, char *argv[]) {
 	uint8_t bin_counter = 0, dat_counter = 0;
 	QST_DATA_CHUNK chunk;
 
+	// note: .qst files actually do NOT need to be interleaved like this to work with the gamecube pso client. the
+	// khyller server did not do this. it is possible that some .qst file tools (qedit?) expect it though? so, meh,
+	// we'll just do it here because it's easy enough. also worth mentioning that khyller also put the .dat file data
+	// first. so the order seems unimportant too ... ?
+
 	while (!bin_done || !dat_done) {
 		if (!bin_done) {
 			uint32_t size = (final_bin_size - bin_pos >= 1024) ? 1024 : (final_bin_size - bin_pos);
@@ -205,6 +213,9 @@ int main(int argc, char *argv[]) {
 
 	fclose(fp);
 
+	free(decompressed_bin);
+	free(final_bin);
+	free(final_dat);
 	free(compressed_bin);
 	free(compressed_dat);
 
