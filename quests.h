@@ -15,7 +15,8 @@ typedef struct __attribute__((packed)) {
 	uint32_t function_offset_table_offset;
 	uint32_t bin_size;
 	uint32_t xffffffff;                     // always 0xffffffff ?
-	uint16_t language;
+	uint8_t download;
+	uint8_t language;
 	uint16_t quest_number;
 
 	// some sources say these strings are all UTF-16LE, but i'm not sure that is really the case for gamecube data?
@@ -52,6 +53,16 @@ typedef struct __attribute__((packed)) {
 	uint32_t size;
 } QST_HEADER;
 
+typedef struct __attribute__((packed)) {
+	uint8_t pkt_id;
+	uint8_t pkt_flags;
+	uint16_t pkt_size;
+	char filename[16];
+	uint8_t data[1024];
+	uint32_t size;
+} QST_DATA_CHUNK;
+
 int generate_qst_header(const char *src_file, size_t src_file_size, QUEST_BIN_HEADER *bin_header, QST_HEADER *out_header);
+int generate_qst_data_chunk(const char *base_filename, uint8_t counter, const uint8_t *src, uint32_t size, QST_DATA_CHUNK *out_chunk);
 
 #endif
