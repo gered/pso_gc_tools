@@ -16,8 +16,18 @@ typedef struct __attribute__((packed)) {
 	uint32_t bin_size;
 	uint32_t xffffffff;                     // always 0xffffffff ?
 	uint8_t download;
-	uint8_t language;
-	uint16_t quest_number;
+
+	// have seen some projects define this field as language. "newserv" just calls it unknown? i've seen multiple
+	// values present for english language quests ...
+	uint8_t unknown;
+
+	// "newserv" has these like this here, as quest_number and episode separately. most other projects that parse
+	// .bin files treat quest_number as a 16-bit number. in general, i think the "episode" field as a separate byte
+	// is *probably* better when dealing with non-custom quests. however, some custom quests (which are mostly of
+	// dubious quality anyway) clearly were created using a tool which had quest_number as a 16-bit value ...
+	// ... so .... i dunno! i guess i'll just leave it like this ...
+	uint8_t quest_number;
+	uint8_t episode;
 
 	// some sources say these strings are all UTF-16LE, but i'm not sure that is really the case for gamecube data?
 	// for gamecube-format quest .bin files, it instead looks like SHIFT-JIS probably ... ?
@@ -26,6 +36,13 @@ typedef struct __attribute__((packed)) {
 	char short_description[128];
 	char long_description[288];
 } QUEST_BIN_HEADER;
+
+typedef struct __attribute__((packed)) {
+	uint32_t type;
+	uint32_t table_size;
+	uint32_t area;
+	uint32_t table_body_size;
+} QUEST_DAT_TABLE_HEADER;
 
 // .qst file header, for either the embedded bin or dat quest data
 typedef struct __attribute__((packed)) {
@@ -64,5 +81,7 @@ typedef struct __attribute__((packed)) {
 
 int generate_qst_header(const char *src_file, size_t src_file_size, QUEST_BIN_HEADER *bin_header, QST_HEADER *out_header);
 int generate_qst_data_chunk(const char *base_filename, uint8_t counter, const uint8_t *src, uint32_t size, QST_DATA_CHUNK *out_chunk);
+int validate_quest_bin(QUEST_BIN_HEADER *header, uint32_t length);
+int validate_quest_dat(uint8_t *data, uint32_t length);
 
 #endif

@@ -7,7 +7,7 @@
 #include "retvals.h"
 
 int read_file(const char *filename, uint8_t** out_file_data, uint32_t *out_file_size) {
-	if (!out_file_size || !out_file_data)
+	if (!filename || !out_file_size || !out_file_data)
 		return ERROR_INVALID_PARAMS;
 
 	FILE *fp = fopen(filename, "rb");
@@ -34,6 +34,24 @@ int read_file(const char *filename, uint8_t** out_file_data, uint32_t *out_file_
 	} while (read);
 
 	*out_file_data = result;
+	return SUCCESS;
+}
+
+int write_file(const char *filename, const uint8_t *data, size_t size) {
+	if (!filename || !data || size == 0)
+		return ERROR_INVALID_PARAMS;
+
+	FILE *fp = fopen(filename, "wb");
+	if (!fp)
+		return ERROR_CREATING_FILE;
+
+	int bytes_written = fwrite(data, 1, size, fp);
+	if (bytes_written != size) {
+		fclose(fp);
+		return ERROR_IO;
+	}
+
+	fclose(fp);
 	return SUCCESS;
 }
 
