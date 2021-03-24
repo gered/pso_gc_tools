@@ -7,6 +7,10 @@ has primitive support for automatically generating a `.qst` file header if one i
 **This tool is NOT required if you are using the "bindat_to_gcdl" tool also included in this repository. That tool
 automatically generates the necessary header information in an identical manner to how this tool does.**
 
+It is probably not necessary to use this tool to be perfectly honest. It was something I originally created thinking
+I would need it, but then realized that I did not ("bindat_to_gcdl" evolved and basically rendered this tool
+redundant for me). It is still included here just for completeness sake.
+
 ## Usage
 
 Given two quest `.bin` and `.dat` files ...
