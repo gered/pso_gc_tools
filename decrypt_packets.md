@@ -11,9 +11,9 @@ to what my local login_server instance was sending proved invaluable to me.
 
 ## Network Protocol
 
-After the initial `0x17` packet sent from the server to the client (which contains the client and server encryption
-keys), all subsequent communication between the server and client is encrypted. When you have the full set of packets, 
-beginning with the `0x17` packet, it is pretty trivial to decrypt the entire set of data.
+After the initial `0x02` or `0x17` packet sent from the server to the client (which contains the client and server 
+encryption keys), all subsequent communication between the server and client is encrypted. When you have the full set 
+of packets, beginning with the `0x02` or `0x17` packet, it is pretty trivial to decrypt the entire set of data.
 
 ```text
 'Welcome' packet. id=17, flags=0, size=276
@@ -40,7 +40,8 @@ server_key = 0x4f4b816b
 client_key = 0x7865a201
 ```
 
-Note, sometimes the `0x17` packet will contain significantly less text than what is shown above. The above output is 
+Note, sometimes the packet will contain significantly less text than what is shown above. As well, the first bit of 
+text may be slightly different depending on if it was received from a login or ship server, etc. The above output is 
 from a Fuzziqer [newserv](https://github.com/fuzziqersoftware/newserv) I was testing with.
 
 Also of note is that Sylverant's login_server currently seems to always use identical server and client keys (I believe
@@ -73,8 +74,12 @@ I do not have this set up and I cannot be bothered to figure out the janky "Tap"
 because I am lazy. And because I have a router running [OpenWrt](https://openwrt.org/) which allows me to easily set up
 packet mirroring with a special iptables kernel module loaded so that I can capture packets directly from my Gamecube.
 
-I'm not going to go into details here on setting up either method. If you're knowledgeable enough to be considering 
-doing packet capture analysis of any sort in the first place, then you should be able to set up either method yourself.
+If you're running the PSO server yourself, then you can just capture packets from that same machine, no special setup
+required.
+
+I'm not going to go into details here on setting up any of these methods. If you're knowledgeable enough to be 
+considering doing packet capture analysis of any sort in the first place, then you should be able to set up either 
+method yourself.
 
 ### Dumping PSO Server/Client Communication Data Dumps with Wireshark 
 
@@ -82,8 +87,7 @@ It is easy to generate packet data dumps containing _just_ the PSO packet data w
 
 After taking a capture of a PSO server/client session, find the TCP packet sent from the server to the client that
 contains the `0x17` packet. This should be easy enough to find as it will be one of the first TCP packets sent from the
-server to the client and contains the clear-text string `DreamCast Port Map. Copyright SEGA Enterprises. 1999` (for 
-non-BB clients anyway, this tool is aimed at GC anyway so that is all I will be covering ...).
+server to the client and contains a clear-text string similar to `DreamCast Port Map. Copyright SEGA Enterprises. 1999`.
 
 Once you've found this packet, right-click it from the top packet list and select "Follow" then "TCP Stream". This will
 bring up a window that shows the raw data, colour-coded to show data originating from the client and server. Use the
