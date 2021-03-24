@@ -18,9 +18,44 @@
 
 #include <sylverant/encryption.h>
 
+#include "defs.h"
 #include "utils.h"
 
+typedef struct _PACKED_ {
+	uint8_t pkt_id;
+	uint8_t pkt_flags;
+	uint16_t pkt_size;
+} PACKET_HEADER;
+
+typedef struct _PACKED_ {
+	PACKET_HEADER header;
+	char message[64];
+	uint32_t server_key;
+	uint32_t client_key;
+	// note: there may be more data. if so, it is likely just more text which can be ignored. check header.pkt_size
+} WELCOME_PACKET;
+
+void decrypt_and_display_packets(CRYPT_SETUP *cs, uint8_t *packet_data, size_t size) {
+	size_t pos = 0;
+
+	CRYPT_CryptData(cs, packet_data, size, 0);
+
+	while (pos < size) {
+		PACKET_HEADER *header = (PACKET_HEADER*)&packet_data[pos];
+
+		printf("id=%x, flags=%x, size=%d\n", header->pkt_id, header->pkt_flags, header->pkt_size);
+		CRYPT_PrintData(&packet_data[pos], header->pkt_size);
+		printf("\n");
+
+		pos += header->pkt_size;
+	}
+}
+
 int main(int argc, char *argv[]) {
+	int returncode;
+	uint8_t *server_data = NULL;
+	uint8_t *client_data = NULL;
+
 	if (argc != 3) {
 		printf("Usage: decrypt_packets server-packet-data.bin client-packet-data.bin\n");
 		return 1;
@@ -30,93 +65,58 @@ int main(int argc, char *argv[]) {
 	const char *client_packet_file = argv[2];
 
 	uint32_t server_data_size = 0;
+	returncode = read_file(server_packet_file, &server_data, &server_data_size);
+	if (returncode) {
+		printf("Error code %d (%s) reading server packet data file: %s\n", returncode, get_error_message(returncode), server_packet_file);
+		goto error;
+	}
+
 	uint32_t client_data_size = 0;
-	uint8_t *server_data;
-	uint8_t *client_data;
-
-	if (read_file(server_packet_file, &server_data, &server_data_size)) {
-		printf("Error reading server packet data file: %s\n", server_packet_file);
-		return 1;
+	returncode = read_file(client_packet_file, &client_data, &client_data_size);
+	if (returncode) {
+		printf("Error code %d (%s) reading client packet data file: %s\n", returncode, get_error_message(returncode), client_packet_file);
+		goto error;
 	}
 
-	if (read_file(client_packet_file, &client_data, &client_data_size)) {
-		printf("Error reading client packet data file: %s\n", client_packet_file);
-		free(server_data);
-		return 1;
+	WELCOME_PACKET *welcome = (WELCOME_PACKET*)server_data;
+	if (welcome->header.pkt_id != 0x02 && welcome->header.pkt_id != 0x17) {
+		printf("Missing or unrecognized 'Welcome' packet:\n\n");
+		CRYPT_PrintData(welcome, sizeof(WELCOME_PACKET));
+		printf("\nWill not be able to successfully decrypt session. Aborting.\n");
+		goto error;
 	}
-
-	uint32_t pos;
-	uint8_t pkt_id, pkt_flags;
-	uint16_t pkt_size;
-
-	uint32_t server_key, client_key;
 
 	// read client & server crypt keys from the "Welcome" packet the server sends right away. always unencrypted.
-	pos = 0;
-	pkt_id = server_data[pos];
-	pkt_flags = server_data[pos+1];
-	pkt_size = *((uint16_t*)&server_data[pos+2]);
-
-	printf("'Welcome' packet. id=%x, flags=%x, size=%d\n", pkt_id, pkt_flags, pkt_size);
-	CRYPT_PrintData(&server_data[pos], pkt_size);
+	printf("'Welcome' packet. id=%x, flags=%x, size=%d\n",
+	       welcome->header.pkt_id,
+	       welcome->header.pkt_flags,
+	       welcome->header.pkt_size);
+	CRYPT_PrintData(welcome, welcome->header.pkt_size);
 	printf("\n");
 
-	// NOTE: sylverant login_server currently always has these identical to each other. fuzziqer does not exhibit this.
-	//       looks like a bug within libsylverant, or more specifically with it's custom random number generator lib?
-	//       either way, it does not pose a problem ...
-	server_key = *((uint32_t*)&server_data[pos+68]);
-	client_key = *((uint32_t*)&server_data[pos+72]);
-
-	printf("server_key = 0x%x\nclient_key = 0x%x\n\n", server_key, client_key);
-
-	pos += pkt_size;
+	printf("server_key = 0x%x\nclient_key = 0x%x\n\n", welcome->server_key, welcome->client_key);
 
 	// set up crypt functionality using those keys, so we can read the rest of the server and client packet data
 	// (all of the rest of it will be encrypted)
 	CRYPT_SETUP server_cs, client_cs;
 
-	CRYPT_CreateKeys(&server_cs, &server_key, CRYPT_GAMECUBE);
-	CRYPT_CreateKeys(&client_cs, &client_key, CRYPT_GAMECUBE);
+	CRYPT_CreateKeys(&server_cs, &welcome->server_key, CRYPT_GAMECUBE);
+	CRYPT_CreateKeys(&client_cs, &welcome->client_key, CRYPT_GAMECUBE);
 
 	// display remainder of server packets first
 	printf("**** SERVER -> CLIENT PACKETS ****\n\n");
-
-	while (pos < server_data_size) {
-		CRYPT_CryptData(&server_cs, &server_data[pos], 4, 0);
-
-		pkt_id = server_data[pos];
-		pkt_flags = server_data[pos+1];
-		pkt_size = *((uint16_t*)&server_data[pos+2]);
-
-		CRYPT_CryptData(&server_cs, &server_data[pos+4], pkt_size-4, 0);
-
-		printf("id=%x, flags=%x, size=%d\n", pkt_id, pkt_flags, pkt_size);
-		CRYPT_PrintData(&server_data[pos], pkt_size);
-		printf("\n");
-
-		pos += pkt_size;
-	}
+	decrypt_and_display_packets(&server_cs, server_data + welcome->header.pkt_size, server_data_size - welcome->header.pkt_size);
 
 	// now display the client packets
-
 	printf("**** CLIENT -> SERVER PACKETS ****\n\n");
-	pos = 0;
+	decrypt_and_display_packets(&client_cs, client_data, client_data_size);
 
-	while (pos < client_data_size) {
-		CRYPT_CryptData(&client_cs, &client_data[pos], 4, 0);
-
-		pkt_id = client_data[pos];
-		pkt_flags = client_data[pos+1];
-		pkt_size = *((uint16_t*)&client_data[pos+2]);
-
-		CRYPT_CryptData(&client_cs, &client_data[pos+4], pkt_size-4, 0);
-
-		printf("id=%x, flags=%x, size=%d\n", pkt_id, pkt_flags, pkt_size);
-		CRYPT_PrintData(&client_data[pos], pkt_size);
-		printf("\n");
-
-		pos += pkt_size;
-	}
-
-	return 0;
+	returncode = 0;
+	goto quit;
+error:
+	returncode = 1;
+quit:
+	free(server_data);
+	free(client_data);
+	return returncode;
 }
