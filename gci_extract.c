@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
 	GCI_DECRYPTED_DLQUEST_HEADER bin_gci_header;
 	result = get_quest_data(bin_gci_filename, &bin_data, &bin_data_size, &bin_gci_header);
 	if (result) {
-		printf("Error code %d reading quest .bin data.\n", result);
+		printf("Error code %d reading quest .bin data: %s\n", result, get_error_message(result));
 		goto error;
 	}
 
@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
 	GCI_DECRYPTED_DLQUEST_HEADER dat_gci_header;
 	result = get_quest_data(dat_gci_filename, &dat_data, &dat_data_size, &dat_gci_header);
 	if (result) {
-		printf("Error code %d reading quest .dat data.\n", result);
+		printf("Error code %d reading quest .dat data: %s\n", result, get_error_message(result));
 		goto error;
 	}
 

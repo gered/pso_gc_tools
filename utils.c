@@ -1,10 +1,22 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <malloc.h>
 
 #include "utils.h"
 #include "retvals.h"
+
+// from error codes defined in retvals.h
+static const char *error_messages[] = {
+		"No error",                    // SUCCESS
+		"Invalid parameter(s)",        // ERROR_INVALID_PARAMS
+		"File not found",              // ERROR_FILE_NOT_FOUND
+		"Cannot create file",          // ERROR_CREATING_FILE
+		"Bad data",                    // ERROR_BAD_DATA
+		"I/O error",                   // ERROR_IO
+		NULL
+};
 
 int read_file(const char *filename, uint8_t** out_file_data, uint32_t *out_file_size) {
 	if (!filename || !out_file_size || !out_file_data)
@@ -87,4 +99,17 @@ char* append_string(const char *a, const char *b) {
 	strcpy(result, a);
 	strcat(result, b);
 	return result;
+}
+
+const char* get_error_message(int retvals_error_code) {
+	retvals_error_code = abs(retvals_error_code);
+
+	int max_error_index;
+	for (max_error_index = 0; error_messages[max_error_index]; ++max_error_index) {}
+	max_error_index = max_error_index;
+
+	if (retvals_error_code >= max_error_index)
+		return "Unknown error";
+	else
+		return error_messages[retvals_error_code];
 }

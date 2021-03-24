@@ -11,4 +11,6 @@ int get_filesize(const char *filename, size_t *out_size);
 const char* path_to_filename(const char *path);
 char* append_string(const char *a, const char *b);
 
+const char* get_error_message(int retvals_error_code);
+
 #endif
