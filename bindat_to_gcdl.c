@@ -6,16 +6,13 @@
 #include <malloc.h>
 
 #include <sylverant/encryption.h>
-//#include <sylverant/prs.h>
+#include <sylverant/prs.h>
 #include "fuzziqer_prs.h"
+
+#include "defs.h"
 
 #include "quests.h"
 #include "utils.h"
-
-typedef struct __attribute__((packed)) {
-	uint32_t decompressed_size;
-	uint32_t crypt_key;
-} DOWNLOAD_QUEST_CHUNKS_HEADER;
 
 int main(int argc, char *argv[]) {
 	if (argc != 4) {

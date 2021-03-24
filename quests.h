@@ -81,6 +81,11 @@ typedef struct _PACKED_ {
 	uint32_t size;
 } QST_DATA_CHUNK;
 
+typedef struct _PACKED_ {
+	uint32_t decompressed_size;
+	uint32_t crypt_key;
+} DOWNLOAD_QUEST_CHUNKS_HEADER;
+
 int generate_qst_header(const char *src_file, size_t src_file_size, QUEST_BIN_HEADER *bin_header, QST_HEADER *out_header);
 int generate_qst_data_chunk(const char *base_filename, uint8_t counter, const uint8_t *src, uint32_t size, QST_DATA_CHUNK *out_chunk);
 int validate_quest_bin(QUEST_BIN_HEADER *header, uint32_t length);
