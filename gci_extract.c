@@ -23,8 +23,10 @@
 
 #include <sylverant/encryption.h>
 #include <sylverant/prs.h>
-
 #include "fuzziqer_prs.h"
+
+#include "defs.h"
+
 #include "quests.h"
 #include "utils.h"
 
@@ -35,7 +37,7 @@
 
 
 // copied from https://github.com/suloku/gcmm/blob/master/source/gci.h
-typedef struct __attribute__((__packed__)) {
+typedef struct _PACKED_ {
 	uint8_t gamecode[4];
 	uint8_t company[2];
 	uint8_t reserved01;    /*** Always 0xff ***/
@@ -53,7 +55,7 @@ typedef struct __attribute__((__packed__)) {
 	uint32_t comment_addr;
 } GCI;
 
-typedef struct __attribute__((packed)) {
+typedef struct _PACKED_ {
 	GCI gci_header;
 	uint8_t card_file_header[0x2040];  // big area containing the icon and such other things. ignored
 

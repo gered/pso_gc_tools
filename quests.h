@@ -4,13 +4,15 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "defs.h"
+
 #define PACKET_ID_QUEST_INFO_ONLINE    0x44
 #define PACKET_ID_QUEST_INFO_DOWNLOAD  0xa6
 #define PACKET_ID_QUEST_CHUNK_ONLINE   0x13
 #define PACKET_ID_QUEST_CHUNK_DOWNLOAD 0xa7
 
 // quest .bin file header (after file contents have been prs-decompressed)
-typedef struct __attribute__((packed)) {
+typedef struct _PACKED_ {
 	uint32_t object_code_offset;
 	uint32_t function_offset_table_offset;
 	uint32_t bin_size;
@@ -37,7 +39,7 @@ typedef struct __attribute__((packed)) {
 	char long_description[288];
 } QUEST_BIN_HEADER;
 
-typedef struct __attribute__((packed)) {
+typedef struct _PACKED_ {
 	uint32_t type;
 	uint32_t table_size;
 	uint32_t area;
@@ -45,7 +47,7 @@ typedef struct __attribute__((packed)) {
 } QUEST_DAT_TABLE_HEADER;
 
 // .qst file header, for either the embedded bin or dat quest data
-typedef struct __attribute__((packed)) {
+typedef struct _PACKED_ {
 	// 0xA6 = download to memcard, 0x44 = download for online play
 	// (quest file data chunks must then be encoded accordingly. 0xA6 = use 0xA7, and 0x44 = use 0x13)
 	uint8_t pkt_id;
@@ -70,7 +72,7 @@ typedef struct __attribute__((packed)) {
 	uint32_t size;
 } QST_HEADER;
 
-typedef struct __attribute__((packed)) {
+typedef struct _PACKED_ {
 	uint8_t pkt_id;
 	uint8_t pkt_flags;
 	uint16_t pkt_size;
