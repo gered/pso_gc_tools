@@ -1,3 +1,17 @@
+/*
+ * PSO EP1&2 (Gamecube) Client/Server Packets Decrypter Tool
+ *
+ * This tool was made for myself as part of an investigative effort to figure out the undocumented "magic" behind
+ * what PSO servers have done behind the scenes to prepare .bin/.dat quest files into something that works as an
+ * offline/download quest which is playable from a Gamecube memory card.
+ *
+ * Given two binary files containing server->client and client->server packet data (separately), as long as the
+ * packet data was captured from the very beginning of the connection, this will decrypt the packet data and display
+ * it as raw packets.
+ *
+ * Gered King, March 2021
+ */
+
 #include <stdio.h>
 #include <stdint.h>
 #include <malloc.h>

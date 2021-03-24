@@ -1,3 +1,15 @@
+/*
+ * PSO EP1&2 (Gamecube) .qst Header Generator Tool
+ *
+ * Given a set of input .bin/.dat quest files, this will automatically generate .hdr files for each appropriate for
+ * a .qst file containing these .bin/.dat files.
+ *
+ * This tool was originally made to supplement the "qst_tool" found here https://github.com/Sylverant/pso_tools
+ * which has somewhat primitive support for automatically generating .qst header information.
+ *
+ * Gered King, March 2021
+ */
+
 #include <stdio.h>
 #include <stdint.h>
 #include <malloc.h>

@@ -1,3 +1,14 @@
+/*
+ * PSO EP1&2 (Gamecube) Quest .bin/.dat File to Download/Offline .qst File Converter
+ *
+ * This tool will take PRS-compressed quest .bin/.dat files and process them into a working .qst file that can be
+ * served up by a PSO server as a "download quest" which will be playable offline from a Gamecube memory card.
+ *
+ * Note that .qst files created in this way cannot be used as "online" quests.
+ *
+ * Gered King, March 2021
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
