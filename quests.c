@@ -39,57 +39,80 @@ int generate_qst_data_chunk(const char *base_filename, uint8_t counter, const ui
 	return SUCCESS;
 }
 
-int validate_quest_bin(QUEST_BIN_HEADER *header, uint32_t length) {
+int validate_quest_bin(QUEST_BIN_HEADER *header, uint32_t length, bool print_errors) {
+	int result = 0;
+
 	// TODO: validations might need tweaking ...
 	if (header->object_code_offset != 468) {
-		printf("Quest bin file invalid (unexpected object_code_offset = %d).\n", header->object_code_offset);
-		return 1;
+		if (print_errors)
+			printf("Quest bin file issue: unexpected object_code_offset = %d\n", header->object_code_offset);
+		result |= QUESTBIN_ERROR_OBJECT_CODE_OFFSET;
 	}
-	if (header->bin_size != length) {
-		printf("Quest bin file invalid (decompressed size does not match header bin_size value: %d).\n", header->bin_size);
-		return 2;
+	if (header->bin_size < length) {
+		if (print_errors)
+			printf("Quest bin file issue: bin_size %d is smaller than the actual decompressed bin size %d\n", header->bin_size, length);
+		result |= QUESTBIN_ERROR_SMALLER_BIN_SIZE;
+	} else if (header->bin_size > length) {
+		if (print_errors)
+			printf("Quest bin file issue: bin_size %d is larger than the actual decompressed bin size %d\n", header->bin_size, length);
+		result |= QUESTBIN_ERROR_LARGER_BIN_SIZE;
 	}
 	if (strlen(header->name) == 0) {
-		printf("Quest bin file invalid or missing quest name.\n");
-		return 3;
+		if (print_errors)
+			printf("Quest bin file issue: blank quest name\n");
+		result |= QUESTBIN_ERROR_NAME;
 	}
-	if (header->quest_number == 0) {
-		printf("Quest bin file invalid (quest_number is zero).\n");
-		return 4;
+	if (header->quest_number_word == 0) {
+		if (print_errors)
+			printf("Quest bin file issue: quest_number is zero\n");
+		result |= QUESTBIN_ERROR_NAME;
 	}
 
-	return 0;
+	return result;
 }
 
-int validate_quest_dat(uint8_t *data, uint32_t length) {
-	// TODO: validations might need tweaking ...
-	if (!data || length == 0) {
-	//	printf("Invalid")
-	}
+int validate_quest_dat(uint8_t *data, uint32_t length, bool print_errors) {
+	int result = 0;
+	int table_index = 0;
 
+	// TODO: validations might need tweaking ...
 	uint32_t offset = 0;
 	while (offset < length) {
 		QUEST_DAT_TABLE_HEADER *table_header = (QUEST_DAT_TABLE_HEADER*)(data + offset);
 
 		if (table_header->type > 5) {
-			printf("Invalid table type value found (type = %d)\n", table_header->type);
-			return 1;
+			if (print_errors)
+				printf("Quest dat file issue: invalid table type value %d found in table index %d\n", table_header->type, table_index);
+			result |= QUESTDAT_ERROR_TYPE;
 		}
 		if (table_header->type == 0 &&
 		    table_header->table_size == 0 &&
 		    table_header->area == 0 &&
 		    table_header->table_body_size == 0) {
 			// all zeros seems to be used to indicate end of file ???
-			// just ignore this and move on ...
+			if ((offset + sizeof(QUEST_DAT_TABLE_HEADER)) == length) {
+				if (print_errors)
+					printf("Quest dat file issue: empty table encountered at end of file\n");
+				result |= QUESTDAT_ERROR_EOF_EMPTY_TABLE;
+			} else {
+				if (print_errors)
+					printf("Quest dat file issue: empty table encountered at table index %d\n", table_index);
+				result |= QUESTDAT_ERROR_EMPTY_TABLE;
+			}
 
 		} else if (table_header->table_size == (table_header->table_body_size - 16)) {
-			printf("Invalid table_body_size found (table_size = %d, table_body_size = %d)\n", table_header->table_size, table_header->table_body_size);
-			return 2;
+			if (print_errors)
+				printf("Quest dat file issue: mismatching table_size (%d) and table_body_size (%d) found in table index %d\n",
+				       table_header->table_size,
+				       table_header->table_body_size,
+				       table_index);
+			result |= QUESTDAT_ERROR_TABLE_BODY_SIZE;
 		}
 
 		offset += sizeof(QUEST_DAT_TABLE_HEADER);
 		offset += table_header->table_body_size;
+		++table_index;
 	}
 
-	return 0;
+	return result;
 }

@@ -120,7 +120,7 @@ int get_quest_data(const char *filename, uint8_t **dest, uint32_t *dest_size, GC
 }
 
 int main(int argc, char *argv[]) {
-	int returncode;
+	int returncode, validation_result;
 	int32_t result;
 	uint8_t *bin_data = NULL;
 	uint8_t *dat_data = NULL;
@@ -170,7 +170,18 @@ int main(int argc, char *argv[]) {
 	decompressed_bin_size = result;
 
 	QUEST_BIN_HEADER *bin_header = (QUEST_BIN_HEADER*)decompressed_bin_data;
-	if (validate_quest_bin(bin_header, decompressed_bin_size)) {
+	validation_result = validate_quest_bin(bin_header, decompressed_bin_size, true);
+	if (validation_result == QUESTBIN_ERROR_SMALLER_BIN_SIZE) {
+		printf("WARNING: Decompressed .bin data is larger than expected. Proceeding using the smaller .bin header bin_size value ...\n");
+		decompressed_bin_size = bin_header->bin_size;
+	} else if (validation_result == QUESTBIN_ERROR_LARGER_BIN_SIZE) {
+		if ((decompressed_bin_size + 1) == bin_header->bin_size) {
+			printf("WARNING: Decompressed .bin data is 1 byte smaller than the .bin header bin_size specifies. Correcting by adding a null byte ...\n");
+			++decompressed_bin_size;
+			decompressed_bin_data = realloc(decompressed_bin_data, decompressed_bin_size);
+			decompressed_bin_data[decompressed_bin_size - 1] = 0;
+		}
+	} else {
 		printf("Aborting due to invalid quest .bin data.\n");
 		goto error;
 	}
@@ -186,14 +197,16 @@ int main(int argc, char *argv[]) {
 	}
 	decompressed_dat_size = result;
 
-	if (validate_quest_dat(decompressed_dat_data, decompressed_dat_size)) {
+	validation_result = validate_quest_dat(decompressed_dat_data, decompressed_dat_size, true);
+	if (validation_result != QUESTDAT_ERROR_EOF_EMPTY_TABLE) {
 		printf("Aborting due to invalid quest .dat data.\n");
 		goto error;
 	}
 
 
-	printf("Quest: id=%d, episode=%d, download=%d, unknown=0x%02x, name=\"%s\", compressed_bin_size=%d, compressed_dat_size=%d\n",
-	       bin_header->quest_number,
+	printf("Quest: id=%d (%d), episode=%d, download=%d, unknown=0x%02x, name=\"%s\", compressed_bin_size=%d, compressed_dat_size=%d\n",
+	       bin_header->quest_number_byte,
+	       bin_header->quest_number_word,
 	       bin_header->episode+1,
 	       bin_header->download,
 	       bin_header->unknown,
@@ -229,7 +242,7 @@ int main(int argc, char *argv[]) {
 	if (out_bin_filename)
 		strncpy(out_filename, out_bin_filename, FILENAME_MAX-1);
 	else
-		snprintf(out_filename, FILENAME_MAX-1, "q%03de%01d.bin", bin_header->quest_number, bin_header->episode+1);
+		snprintf(out_filename, FILENAME_MAX-1, "q%03de%01d.bin", bin_header->quest_number_byte, bin_header->episode+1);
 
 	printf("Writing compressed quest .bin data to %s ...\n", out_filename);
 	result = write_file(out_filename, bin_data, bin_data_size);
@@ -244,7 +257,7 @@ int main(int argc, char *argv[]) {
 	if (out_dat_filename)
 		strncpy(out_filename, out_dat_filename, FILENAME_MAX-1);
 	else
-		snprintf(out_filename, FILENAME_MAX-1, "q%03de%01d.dat", bin_header->quest_number, bin_header->episode+1);
+		snprintf(out_filename, FILENAME_MAX-1, "q%03de%01d.dat", bin_header->quest_number_byte, bin_header->episode+1);
 
 	printf("Writing compressed quest .dat data to %s ...\n", out_filename);
 	result = write_file(out_filename, dat_data, dat_data_size);

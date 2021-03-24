@@ -3,8 +3,20 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "defs.h"
+
+#define QUESTBIN_ERROR_OBJECT_CODE_OFFSET  1
+#define QUESTBIN_ERROR_LARGER_BIN_SIZE     2
+#define QUESTBIN_ERROR_SMALLER_BIN_SIZE    4
+#define QUESTBIN_ERROR_NAME                8
+#define QUESTBIN_ERROR_NUMBER              16
+
+#define QUESTDAT_ERROR_TYPE                1
+#define QUESTDAT_ERROR_TABLE_BODY_SIZE     2
+#define QUESTDAT_ERROR_EOF_EMPTY_TABLE     4  // more of a warning i guess? maybe this is totally normal?
+#define QUESTDAT_ERROR_EMPTY_TABLE         8
 
 #define PACKET_ID_QUEST_INFO_ONLINE    0x44
 #define PACKET_ID_QUEST_INFO_DOWNLOAD  0xa6
@@ -28,8 +40,15 @@ typedef struct _PACKED_ {
 	// is *probably* better when dealing with non-custom quests. however, some custom quests (which are mostly of
 	// dubious quality anyway) clearly were created using a tool which had quest_number as a 16-bit value ...
 	// ... so .... i dunno! i guess i'll just leave it like this ...
-	uint8_t quest_number;
-	uint8_t episode;
+	union {
+		struct {
+			uint8_t quest_number_byte;
+			uint8_t episode;
+		};
+		struct {
+			uint16_t quest_number_word;
+		};
+	};
 
 	// some sources say these strings are all UTF-16LE, but i'm not sure that is really the case for gamecube data?
 	// for gamecube-format quest .bin files, it instead looks like SHIFT-JIS probably ... ?
@@ -88,7 +107,7 @@ typedef struct _PACKED_ {
 
 int generate_qst_header(const char *src_file, size_t src_file_size, QUEST_BIN_HEADER *bin_header, QST_HEADER *out_header);
 int generate_qst_data_chunk(const char *base_filename, uint8_t counter, const uint8_t *src, uint32_t size, QST_DATA_CHUNK *out_chunk);
-int validate_quest_bin(QUEST_BIN_HEADER *header, uint32_t length);
-int validate_quest_dat(uint8_t *data, uint32_t length);
+int validate_quest_bin(QUEST_BIN_HEADER *header, uint32_t length, bool print_errors);
+int validate_quest_dat(uint8_t *data, uint32_t length, bool print_errors);
 
 #endif
