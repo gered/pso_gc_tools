@@ -9,18 +9,13 @@
 #include "quests.h"
 #include "textconv.h"
 
-int write_qst_header(const char *filename, const QST_HEADER *header) {
-	FILE *fp = fopen(filename, "wb");
-	if (!fp)
-		return ERROR_CREATING_FILE;
-
-	fwrite(header, sizeof(QST_HEADER), 1, fp);
-	fclose(fp);
-
-	return SUCCESS;
-}
-
 int main(int argc, char *argv[]) {
+	int returncode, validation_result;
+	uint8_t *bin_data = NULL;
+	uint8_t *dat_data = NULL;
+	char *bin_hdr_file = NULL;
+	char *dat_hdr_file = NULL;
+
 	if (argc != 3) {
 		printf("Usage: gen_qst_header quest.bin quest.dat\n");
 		return 1;
@@ -30,85 +25,93 @@ int main(int argc, char *argv[]) {
 	const char *dat_file = argv[2];
 
 	const char *bin_base_filename = path_to_filename(bin_file);
-	if (strlen(bin_base_filename) > 16) {
+	if (strlen(bin_base_filename) > QUEST_FILENAME_MAX_LENGTH) {
 		printf("Bin filename is too long to fit in a QST header. Maximum length is 16 including file extension.\n");
-		return 1;
+		goto error;
 	}
-
 	const char *dat_base_filename = path_to_filename(dat_file);
-	if (strlen(dat_base_filename) > 16) {
+	if (strlen(dat_base_filename) > QUEST_FILENAME_MAX_LENGTH) {
 		printf("Dat filename is too long to fit in a QST header. Maximum length is 16 including file extension.\n");
-		return 1;
+		goto error;
 	}
 
 	size_t bin_compressed_size, dat_compressed_size;
 
-	if (get_filesize(bin_file, &bin_compressed_size)) {
-		printf("Error getting size of bin file: %s\n", bin_file);
-		return 1;
+	returncode = get_filesize(bin_file, &bin_compressed_size);
+	if (returncode) {
+		printf("Error code %d (%s) getting size of bin file: %s\n", returncode, get_error_message(returncode), bin_file);
+		goto error;
 	}
-	if (get_filesize(dat_file, &dat_compressed_size)) {
-		printf("Error getting size of dat file: %s\n", dat_file);
-		return 1;
+	returncode = get_filesize(dat_file, &dat_compressed_size);
+	if (returncode) {
+		printf("Error code %d (%s) getting size of dat file: %s\n", returncode, get_error_message(returncode), dat_file);
+		goto error;
 	}
 
-	uint8_t *bin_data;
+
 	size_t bin_decompressed_size = prs_decompress_file(bin_file, &bin_data);
 	if (bin_decompressed_size < 0) {
 		printf("Error opening and decompressing bin file: %s\n", bin_file);
-		return 1;
+		goto error;
 	}
 
-	uint8_t *dat_data;
 	size_t dat_decompressed_size = prs_decompress_file(dat_file, &dat_data);
 	if (dat_decompressed_size < 0) {
 		printf("Error opening and decompressing dat file: %s\n", dat_file);
-		return 1;
+		goto error;
 	}
 
 
 	QUEST_BIN_HEADER *bin_header = (QUEST_BIN_HEADER*)bin_data;
-
-	sjis_to_utf8(bin_header->name, sizeof(bin_header->name));
-	sjis_to_utf8(bin_header->short_description, sizeof(bin_header->short_description));
-	sjis_to_utf8(bin_header->long_description, sizeof(bin_header->long_description));
-
-	if (bin_header->object_code_offset != 468) {
-		printf("Quest bin file invalid (unexpected object_code_offset = %d).\n", bin_header->object_code_offset);
-		return 1;
-	}
-	if (bin_header->bin_size != bin_decompressed_size) {
-		printf("Quest bin file invalid (decompressed size does not match bin_size value: %d).\n", bin_header->bin_size);
-		return 1;
-	}
-	if (strlen(bin_header->name) == 0) {
-		printf("Quest bin file invalid or missing quest name.\n");
-		return 1;
-	}
-	if (bin_header->quest_number == 0) {
-		printf("Quest bin file invalid (quest_number is zero?).\n");
-		return 1;
+	validation_result = validate_quest_bin(bin_header, bin_decompressed_size, true);
+	if (validation_result) {
+		printf("Aborting due to invalid quest .bin data.\n");
+		goto error;
 	}
 
-	printf("Quest: id=%d, language=0x%04x, name=%s\n", bin_header->quest_number, bin_header->language, bin_header->name);
+	//sjis_to_utf8(bin_header->name, sizeof(bin_header->name));
+	//sjis_to_utf8(bin_header->short_description, sizeof(bin_header->short_description));
+	//sjis_to_utf8(bin_header->long_description, sizeof(bin_header->long_description));
+
+	printf("Quest: id=%d (%d), episode=%d, download=%d, unknown=0x%02x, name=\"%s\", compressed_bin_size=%ld, compressed_dat_size=%ld\n",
+	       bin_header->quest_number_byte,
+	       bin_header->quest_number_word,
+	       bin_header->episode+1,
+	       bin_header->download,
+	       bin_header->unknown,
+	       bin_header->name,
+	       bin_compressed_size,
+	       dat_compressed_size);
+
 
 	QST_HEADER qst_bin_header, qst_dat_header;
-
 	generate_qst_header(bin_base_filename, bin_compressed_size, bin_header, &qst_bin_header);
 	generate_qst_header(dat_base_filename, dat_compressed_size, bin_header, &qst_dat_header);
 
-	char *bin_hdr_file = append_string(bin_file, ".hdr");
-	char *dat_hdr_file = append_string(dat_file, ".hdr");
+	bin_hdr_file = append_string(bin_file, ".hdr");
+	dat_hdr_file = append_string(dat_file, ".hdr");
 
-	if (write_qst_header(bin_hdr_file, &qst_bin_header)) {
-		return 1;
-	}
-	if (write_qst_header(dat_hdr_file, &qst_dat_header)) {
-		return 1;
+	returncode = write_file(bin_hdr_file, &qst_bin_header, sizeof(QST_HEADER));
+	if (returncode) {
+		printf("Error code %d (%s) writing out bin header file: %s\n", returncode, get_error_message(returncode), bin_hdr_file);
+		goto error;
 	}
 
+	returncode = write_file(dat_hdr_file, &qst_dat_header, sizeof(QST_HEADER));
+	if (returncode) {
+		printf("Error code %d (%s) writing out dat header file: %s\n", returncode, get_error_message(returncode), dat_hdr_file);
+		goto error;
+	}
+
+
+	returncode = 0;
+	goto quit;
+error:
+	returncode = 1;
+quit:
+	free(bin_hdr_file);
+	free(dat_hdr_file);
 	free(bin_data);
 	free(dat_data);
-
-	return 0;
+	return returncode;
 }

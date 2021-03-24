@@ -162,7 +162,8 @@ int main(int argc, char *argv[]) {
 	/** decompress loaded quest .bin data and validate it **/
 	printf("Validating quest .bin data ...\n");
 
-	result = prs_decompress_buf(bin_data, &decompressed_bin_data, bin_data_size);
+	//result = prs_decompress_buf(bin_data, &decompressed_bin_data, bin_data_size);
+	result = fuzziqer_prs_decompress_buf(bin_data, &decompressed_bin_data, bin_data_size);
 	if (result < 0) {
 		printf("Error code %d decompressing .bin data.\n", result);
 		goto error;
@@ -247,7 +248,7 @@ int main(int argc, char *argv[]) {
 	printf("Writing compressed quest .bin data to %s ...\n", out_filename);
 	result = write_file(out_filename, bin_data, bin_data_size);
 	if (result) {
-		printf("Error code %d writing out file.\n", result);
+		printf("Error code %d writing out file: %s\n", result, get_error_message(result));
 		goto error;
 	}
 
@@ -262,7 +263,7 @@ int main(int argc, char *argv[]) {
 	printf("Writing compressed quest .dat data to %s ...\n", out_filename);
 	result = write_file(out_filename, dat_data, dat_data_size);
 	if (result) {
-		printf("Error code %d writing out file.\n", result);
+		printf("Error code %d writing out file: %s\n", result, get_error_message(result));
 		goto error;
 	}
 

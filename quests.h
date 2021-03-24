@@ -23,13 +23,15 @@
 #define PACKET_ID_QUEST_CHUNK_ONLINE   0x13
 #define PACKET_ID_QUEST_CHUNK_DOWNLOAD 0xa7
 
-// quest .bin file header (after file contents have been prs-decompressed)
+#define QUEST_FILENAME_MAX_LENGTH      16
+
+// decompressed quest .bin file header
 typedef struct _PACKED_ {
 	uint32_t object_code_offset;
 	uint32_t function_offset_table_offset;
 	uint32_t bin_size;
-	uint32_t xffffffff;                     // always 0xffffffff ?
-	uint8_t download;
+	uint32_t xffffffff;                // always 0xffffffff ?
+	uint8_t download;                  // must be '1' to be usable as an offline quest (played from memory card)
 
 	// have seen some projects define this field as language. "newserv" just calls it unknown? i've seen multiple
 	// values present for english language quests ...
@@ -58,6 +60,7 @@ typedef struct _PACKED_ {
 	char long_description[288];
 } QUEST_BIN_HEADER;
 
+// decompressed quest .dat file table header
 typedef struct _PACKED_ {
 	uint32_t type;
 	uint32_t table_size;
@@ -65,7 +68,7 @@ typedef struct _PACKED_ {
 	uint32_t table_body_size;
 } QUEST_DAT_TABLE_HEADER;
 
-// .qst file header, for either the embedded bin or dat quest data
+// .qst file header, for either the embedded bin or dat quest data (there should be two of these per .qst file).
 typedef struct _PACKED_ {
 	// 0xA6 = download to memcard, 0x44 = download for online play
 	// (quest file data chunks must then be encoded accordingly. 0xA6 = use 0xA7, and 0x44 = use 0x13)
@@ -87,27 +90,31 @@ typedef struct _PACKED_ {
 	// ... and so, this value is also probably unimportant?
 	uint16_t flags;
 
-	char filename[16];
+	char filename[QUEST_FILENAME_MAX_LENGTH];
 	uint32_t size;
 } QST_HEADER;
 
+// .qst raw .bin/.dat file data packet. the original .bin/.dat file data is broken down into as many of these structs
+// as is necessary to fit into the resulting .qst file
 typedef struct _PACKED_ {
 	uint8_t pkt_id;
 	uint8_t pkt_flags;
 	uint16_t pkt_size;
-	char filename[16];
+	char filename[QUEST_FILENAME_MAX_LENGTH];
 	uint8_t data[1024];
 	uint32_t size;
 } QST_DATA_CHUNK;
 
+// for download/offline .qst files only. the raw .bin/.dat file data needs to be prefixed with one of these structs
+// before being turned into QST_DATA_CHUNKs. only one of these is needed per each .bin/.dat file.
 typedef struct _PACKED_ {
 	uint32_t decompressed_size;
 	uint32_t crypt_key;
 } DOWNLOAD_QUEST_CHUNKS_HEADER;
 
-int generate_qst_header(const char *src_file, size_t src_file_size, QUEST_BIN_HEADER *bin_header, QST_HEADER *out_header);
+int generate_qst_header(const char *src_file, size_t src_file_size, const QUEST_BIN_HEADER *bin_header, QST_HEADER *out_header);
 int generate_qst_data_chunk(const char *base_filename, uint8_t counter, const uint8_t *src, uint32_t size, QST_DATA_CHUNK *out_chunk);
-int validate_quest_bin(QUEST_BIN_HEADER *header, uint32_t length, bool print_errors);
-int validate_quest_dat(uint8_t *data, uint32_t length, bool print_errors);
+int validate_quest_bin(const QUEST_BIN_HEADER *header, uint32_t length, bool print_errors);
+int validate_quest_dat(const uint8_t *data, uint32_t length, bool print_errors);
 
 #endif

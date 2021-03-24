@@ -15,6 +15,14 @@
 #include "utils.h"
 
 int main(int argc, char *argv[]) {
+	int returncode, validation_result;
+	uint8_t *compressed_bin = NULL;
+	uint8_t *compressed_dat = NULL;
+	uint8_t *decompressed_bin = NULL;
+	uint8_t *decompressed_dat = NULL;
+	uint8_t *final_bin = NULL;
+	uint8_t *final_dat = NULL;
+
 	if (argc != 4) {
 		printf("Usage: bindat_to_gcdl quest.bin quest.dat output.qst\n");
 		return 1;
@@ -29,88 +37,95 @@ int main(int argc, char *argv[]) {
 	/** validate lengths of the given quest .bin and .dat files, to make sure they fit into the packet structs **/
 
 	const char *bin_base_filename = path_to_filename(bin_filename);
-	if (strlen(bin_base_filename) > 16) {
+	if (strlen(bin_base_filename) > QUEST_FILENAME_MAX_LENGTH) {
 		printf("Bin filename is too long to fit in a QST file header. Maximum length is 16 including file extension.\n");
-		return 1;
+		goto error;
 	}
 
 	const char *dat_base_filename = path_to_filename(dat_filename);
-	if (strlen(dat_base_filename) > 16) {
+	if (strlen(dat_base_filename) > QUEST_FILENAME_MAX_LENGTH) {
 		printf("Dat filename is too long to fit in a QST file header. Maximum length is 16 including file extension.\n");
-		return 1;
+		goto error;
 	}
 
 
 	/** read in given quest .bin and .dat files **/
 
-	uint8_t *compressed_bin, *compressed_dat;
 	uint32_t compressed_bin_size, compressed_dat_size;
 
-	if (read_file(bin_filename, &compressed_bin, &compressed_bin_size)) {
-		printf("Error reading bin file: %s\n", bin_filename);
-		return 1;
-	}
-	if (read_file(dat_filename, &compressed_dat, &compressed_dat_size)) {
-		printf("Error reading dat file: %s\n", dat_filename);
-		return 1;
+	printf("Reading quest .bin file %s ...\n", bin_filename);
+	returncode = read_file(bin_filename, &compressed_bin, &compressed_bin_size);
+	if (returncode) {
+		printf("Error code %d (%s) reading bin file: %s\n", returncode, get_error_message(returncode), bin_filename);
+		goto error;
 	}
 
+	printf("Reading quest .dat file %s ...\n", dat_filename);
+	returncode = read_file(dat_filename, &compressed_dat, &compressed_dat_size);
+	if (returncode) {
+		printf("Error code %d (%s) reading dat file: %s\n", returncode, get_error_message(returncode), dat_filename);
+		goto error;
+	}
 
-	/** prs decompress the .bin file. store the prs decompressed data sizes for both the .bin and .dat files **/
 
-	uint8_t *decompressed_bin;
-	uint32_t decompressed_bin_size, decompressed_dat_size;
+	/** prs decompress the .bin file, parse out it's header and validate it **/
+	printf("Decompressing and validating .bin file ...\n");
 
+	uint32_t decompressed_bin_size;
 	result = fuzziqer_prs_decompress_buf(compressed_bin, &decompressed_bin, compressed_bin_size);
 	if (result < 0) {
-		printf("prs_decompress_buf() error %d with bin file data: %s\n", result, bin_filename);
-		return 1;
+		printf("Error code %d decompressing .dat data.\n", result);
+		goto error;
 	}
 	decompressed_bin_size = (uint32_t)result;
 
-	result = fuzziqer_prs_decompress_size(compressed_dat, compressed_dat_size);
-	if (result < 0) {
-		printf("prs_decompress_size() error %d with dat file data: %s\n", result, dat_filename);
-		return 1;
-	}
-	decompressed_dat_size = (uint32_t)result;
-
-
-	/** parse quest .bin header from decompressed .bin file data. also set the "download" flag in the .bin header **/
-
 	QUEST_BIN_HEADER *bin_header = (QUEST_BIN_HEADER*)decompressed_bin;
+	validation_result = validate_quest_bin(bin_header, decompressed_bin_size, true);
+	if (validation_result) {
+		printf("Aborting due to invalid quest .bin data.\n");
+		goto error;
+	}
 
-	// TODO: validations might need tweaking ...
-	if (bin_header->object_code_offset != 468) {
-		printf("Quest bin file invalid (unexpected object_code_offset = %d).\n", bin_header->object_code_offset);
-		return 1;
+
+	/** prs decompress the .dat file and validate it **/
+	printf("Decompressing and validating .dat file ...\n");
+
+	uint32_t decompressed_dat_size;
+	result = fuzziqer_prs_decompress_buf(compressed_dat, &decompressed_dat, compressed_dat_size);
+	if (result < 0) {
+		printf("Error code %d decompressing .dat data.\n", result);
+		goto error;
 	}
-	if (bin_header->bin_size != decompressed_bin_size) {
-		printf("Quest bin file invalid (decompressed size does not match header bin_size value: %d).\n", bin_header->bin_size);
-		return 1;
+	decompressed_dat_size = result;
+
+	validation_result = validate_quest_dat(decompressed_dat, decompressed_dat_size, true);
+	if (validation_result != QUESTDAT_ERROR_EOF_EMPTY_TABLE) {
+		printf("Aborting due to invalid quest .dat data.\n");
+		goto error;
 	}
-	if (strlen(bin_header->name) == 0) {
-		printf("Quest bin file invalid or missing quest name.\n");
-		return 1;
-	}
-	if (bin_header->quest_number == 0) {
-		printf("Quest bin file invalid (quest_number is zero).\n");
-		return 1;
-	}
+
+
+	printf("Quest: id=%d (%d), episode=%d, download=%d, unknown=0x%02x, name=\"%s\", compressed_bin_size=%d, compressed_dat_size=%d\n",
+	       bin_header->quest_number_byte,
+	       bin_header->quest_number_word,
+	       bin_header->episode+1,
+	       bin_header->download,
+	       bin_header->unknown,
+	       bin_header->name,
+	       compressed_bin_size,
+	       compressed_dat_size);
+
+
+	/** set the "download" flag in the .bin header and then re-compress the .bin data **/
+	printf("Setting .bin header 'download' flag and re-compressing .bin file data ...\n");
 
 	bin_header->download = 1;  // gamecube pso client will not find quests on a memory card if this is not set!
 
-	printf("Quest: id=%d, download=%d, language=0x%02x, name=%s\n", bin_header->quest_number, bin_header->download, bin_header->language, bin_header->name);
-
-
-	/** re-compress bin data, so it includes our modified header "download" flag **/
-
 	uint8_t *recompressed_bin;
-
 	result = fuzziqer_prs_compress(decompressed_bin, &recompressed_bin, decompressed_bin_size);
 	if (result < 0) {
-		printf("prs_compress() error %d with modified bin file data: %s\n", result, bin_filename);
-		return 1;
+		printf("Error code %d re-compressing .bin file data.\n", result);
+		goto error;
 	}
 
 	// overwrite old compressed bin data, since we don't need it anymore
@@ -121,11 +136,12 @@ int main(int argc, char *argv[]) {
 
 	/** encrypt compressed .bin and .dat file data, using PC crypt method with randomly generated crypt key.
 	    prefix unencrypted download quest chunks header to prs compressed + encrypted .bin and .dat file data. **/
+	printf("Preparing final .qst file data ... \n");
 
 	srand(time(NULL));
 
 	uint32_t final_bin_size = compressed_bin_size + sizeof(DOWNLOAD_QUEST_CHUNKS_HEADER);
-	uint8_t *final_bin = malloc(final_bin_size);
+	final_bin = malloc(final_bin_size);
 	memset(final_bin, 0, final_bin_size);
 	uint8_t *crypt_compressed_bin = final_bin + sizeof(DOWNLOAD_QUEST_CHUNKS_HEADER);
 	DOWNLOAD_QUEST_CHUNKS_HEADER *bin_dlchunks_header = (DOWNLOAD_QUEST_CHUNKS_HEADER*)final_bin;
@@ -134,7 +150,7 @@ int main(int argc, char *argv[]) {
 	memcpy(crypt_compressed_bin, compressed_bin, compressed_bin_size);
 
 	uint32_t final_dat_size = compressed_dat_size + sizeof(DOWNLOAD_QUEST_CHUNKS_HEADER);
-	uint8_t *final_dat = malloc(final_dat_size);
+	final_dat = malloc(final_dat_size);
 	memset(final_dat, 0, final_dat_size);
 	uint8_t *crypt_compressed_dat = final_dat + sizeof(DOWNLOAD_QUEST_CHUNKS_HEADER);
 	DOWNLOAD_QUEST_CHUNKS_HEADER *dat_dlchunks_header = (DOWNLOAD_QUEST_CHUNKS_HEADER*)final_dat;
@@ -162,11 +178,12 @@ int main(int argc, char *argv[]) {
 
 
 	/** write out the .qst file. chunk data is written out as interleaved 0xA7 packets containing 1024 bytes each */
+	printf("Writing out %s ...\n", output_qst_filename);
 
 	FILE *fp = fopen(output_qst_filename, "wb");
 	if (!fp) {
 		printf("Error creating output .qst file: %s\n", output_qst_filename);
-		return 1;
+		goto error;
 	}
 
 	fwrite(&qst_bin_header, sizeof(qst_bin_header), 1, fp);
@@ -210,11 +227,15 @@ int main(int argc, char *argv[]) {
 
 	fclose(fp);
 
+	returncode = 0;
+	goto quit;
+error:
+	returncode = 1;
+quit:
 	free(decompressed_bin);
 	free(final_bin);
 	free(final_dat);
 	free(compressed_bin);
 	free(compressed_dat);
-
-	return 0;
+	return returncode;
 }

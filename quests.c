@@ -5,7 +5,7 @@
 #include "retvals.h"
 #include "quests.h"
 
-int generate_qst_header(const char *src_file, size_t src_file_size, QUEST_BIN_HEADER *bin_header, QST_HEADER *out_header) {
+int generate_qst_header(const char *src_file, size_t src_file_size, const QUEST_BIN_HEADER *bin_header, QST_HEADER *out_header) {
 	if (!src_file || !bin_header || !out_header)
 		return ERROR_INVALID_PARAMS;
 
@@ -39,7 +39,7 @@ int generate_qst_data_chunk(const char *base_filename, uint8_t counter, const ui
 	return SUCCESS;
 }
 
-int validate_quest_bin(QUEST_BIN_HEADER *header, uint32_t length, bool print_errors) {
+int validate_quest_bin(const QUEST_BIN_HEADER *header, uint32_t length, bool print_errors) {
 	int result = 0;
 
 	// TODO: validations might need tweaking ...
@@ -71,7 +71,7 @@ int validate_quest_bin(QUEST_BIN_HEADER *header, uint32_t length, bool print_err
 	return result;
 }
 
-int validate_quest_dat(uint8_t *data, uint32_t length, bool print_errors) {
+int validate_quest_dat(const uint8_t *data, uint32_t length, bool print_errors) {
 	int result = 0;
 	int table_index = 0;
 
@@ -92,15 +92,15 @@ int validate_quest_dat(uint8_t *data, uint32_t length, bool print_errors) {
 			// all zeros seems to be used to indicate end of file ???
 			if ((offset + sizeof(QUEST_DAT_TABLE_HEADER)) == length) {
 				if (print_errors)
-					printf("Quest dat file issue: empty table encountered at end of file\n");
+					printf("Quest dat file warning: empty table encountered at end of file (probably normal?)\n");
 				result |= QUESTDAT_ERROR_EOF_EMPTY_TABLE;
 			} else {
 				if (print_errors)
-					printf("Quest dat file issue: empty table encountered at table index %d\n", table_index);
+					printf("Quest dat file warning: empty table encountered at table index %d\n", table_index);
 				result |= QUESTDAT_ERROR_EMPTY_TABLE;
 			}
 
-		} else if (table_header->table_size == (table_header->table_body_size - 16)) {
+		} else if (table_header->table_size == (table_header->table_body_size - sizeof(QUEST_DAT_TABLE_HEADER))) {
 			if (print_errors)
 				printf("Quest dat file issue: mismatching table_size (%d) and table_body_size (%d) found in table index %d\n",
 				       table_header->table_size,

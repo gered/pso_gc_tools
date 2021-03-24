@@ -49,7 +49,7 @@ int read_file(const char *filename, uint8_t** out_file_data, uint32_t *out_file_
 	return SUCCESS;
 }
 
-int write_file(const char *filename, const uint8_t *data, size_t size) {
+int write_file(const char *filename, const void *data, size_t size) {
 	if (!filename || !data || size == 0)
 		return ERROR_INVALID_PARAMS;
 
