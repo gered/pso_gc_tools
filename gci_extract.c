@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
 			decompressed_bin_data = realloc(decompressed_bin_data, decompressed_bin_size);
 			decompressed_bin_data[decompressed_bin_size - 1] = 0;
 		}
-	} else {
+	} else if (validation_result) {
 		printf("Aborting due to invalid quest .bin data.\n");
 		goto error;
 	}
