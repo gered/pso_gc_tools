@@ -12,11 +12,11 @@
 #define QUESTBIN_ERROR_SMALLER_BIN_SIZE    4
 #define QUESTBIN_ERROR_NAME                8
 #define QUESTBIN_ERROR_NUMBER              16
+#define QUESTBIN_ERROR_EPISODE             32
 
 #define QUESTDAT_ERROR_TYPE                1
 #define QUESTDAT_ERROR_TABLE_BODY_SIZE     2
-#define QUESTDAT_ERROR_EOF_EMPTY_TABLE     4  // more of a warning i guess? maybe this is totally normal?
-#define QUESTDAT_ERROR_EMPTY_TABLE         8
+#define QUESTDAT_ERROR_EMPTY_TABLE         4
 
 #define PACKET_ID_QUEST_INFO_ONLINE    0x44
 #define PACKET_ID_QUEST_INFO_DOWNLOAD  0xa6
@@ -116,5 +116,6 @@ int generate_qst_header(const char *src_file, size_t src_file_size, const QUEST_
 int generate_qst_data_chunk(const char *base_filename, uint8_t counter, const uint8_t *src, uint32_t size, QST_DATA_CHUNK *out_chunk);
 int validate_quest_bin(const QUEST_BIN_HEADER *header, uint32_t length, bool print_errors);
 int validate_quest_dat(const uint8_t *data, uint32_t length, bool print_errors);
+int handle_quest_bin_validation_issues(int bin_validation_result, QUEST_BIN_HEADER *bin_header, uint8_t **decompressed_bin_data, size_t *decompressed_bin_length);
 
 #endif

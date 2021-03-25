@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <malloc.h>
 
 #include "retvals.h"
 #include "quests.h"
@@ -67,6 +68,11 @@ int validate_quest_bin(const QUEST_BIN_HEADER *header, uint32_t length, bool pri
 			printf("Quest bin file issue: quest_number is zero\n");
 		result |= QUESTBIN_ERROR_NAME;
 	}
+	if (header->episode > 1) {
+		if (print_errors)
+			printf("Quest bin file issue: unexpected episode value %d, quest was probably created using a 16-bit quest_number\n", header->episode);
+		result |= QUESTBIN_ERROR_EPISODE;
+	}
 
 	return result;
 }
@@ -89,11 +95,8 @@ int validate_quest_dat(const uint8_t *data, uint32_t length, bool print_errors) 
 		    table_header->table_size == 0 &&
 		    table_header->area == 0 &&
 		    table_header->table_body_size == 0) {
-			// all zeros seems to be used to indicate end of file ???
 			if ((offset + sizeof(QUEST_DAT_TABLE_HEADER)) == length) {
-				if (print_errors)
-					printf("Quest dat file warning: empty table encountered at end of file (probably normal?)\n");
-				result |= QUESTDAT_ERROR_EOF_EMPTY_TABLE;
+				// ignore this case ... this empty table is used to mark EOF apparently
 			} else {
 				if (print_errors)
 					printf("Quest dat file warning: empty table encountered at table index %d\n", table_index);
@@ -115,4 +118,40 @@ int validate_quest_dat(const uint8_t *data, uint32_t length, bool print_errors) 
 	}
 
 	return result;
+}
+
+// HACK: this function applies some arguably shitty hack-fixes under certain circumstances.
+int handle_quest_bin_validation_issues(int bin_validation_result, QUEST_BIN_HEADER *bin_header, uint8_t **decompressed_bin_data, size_t *decompressed_bin_length) {
+	// this hacky fix _probably_ isn't so bad. in these cases, the extra data sitting in the decompressed memory seems
+	// to just be repeated subsets of the previous "good" data. almost as if the PRS decompression was stuck in a loop
+	// that it eventually worked itself out of. just a wild guess though ...
+	if (bin_validation_result & QUESTBIN_ERROR_SMALLER_BIN_SIZE) {
+		bin_validation_result &= ~QUESTBIN_ERROR_SMALLER_BIN_SIZE;
+		printf("WARNING: Decompressed .bin data is larger than expected. Proceeding using the smaller .bin header bin_size value ...\n");
+		*decompressed_bin_length = bin_header->bin_size;
+	}
+
+	// this hacky fix is _probably_ not too bad either, but might have more potential for breaking things than the
+	// above hack fix. maybe. i also think this is a result of some PRS decompression bug (or maybe a PRS compression
+	// bug? since i believe the decompression implementation is based on game code disassembly, but most (all?) of the
+	// PRS-compression implementations are based on the fuzziqer implementation which he coded himself instead of it
+	// being based on game code disassembly?) ... who knows!
+	if (bin_validation_result & QUESTBIN_ERROR_LARGER_BIN_SIZE) {
+		bin_validation_result &= ~QUESTBIN_ERROR_LARGER_BIN_SIZE;
+		if ((*decompressed_bin_length + 1) == bin_header->bin_size) {
+			printf("WARNING: Decompressed .bin data is 1 byte smaller than the .bin header bin_size specifies. Correcting by adding a null byte ...\n");
+			size_t length = *decompressed_bin_length + 1;
+			uint8_t *new_bin_data;
+			new_bin_data = realloc(*decompressed_bin_data, length);
+			new_bin_data[length - 1] = 0;
+			*decompressed_bin_data = new_bin_data;
+			*decompressed_bin_length = length;
+		}
+	}
+	if (bin_validation_result & QUESTBIN_ERROR_EPISODE) {
+		bin_validation_result &= ~QUESTBIN_ERROR_EPISODE;
+		printf("WARNING: .bin header episode value should be ignored due to apparent 16-bit quest_number value\n");
+	}
+
+	return bin_validation_result;
 }

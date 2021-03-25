@@ -82,16 +82,17 @@ int main(int argc, char *argv[]) {
 	/** prs decompress the .bin file, parse out it's header and validate it **/
 	printf("Decompressing and validating .bin file ...\n");
 
-	uint32_t decompressed_bin_size;
+	size_t decompressed_bin_size;
 	result = fuzziqer_prs_decompress_buf(compressed_bin, &decompressed_bin, compressed_bin_size);
 	if (result < 0) {
 		printf("Error code %d decompressing .dat data.\n", result);
 		goto error;
 	}
-	decompressed_bin_size = (uint32_t)result;
+	decompressed_bin_size = result;
 
 	QUEST_BIN_HEADER *bin_header = (QUEST_BIN_HEADER*)decompressed_bin;
 	validation_result = validate_quest_bin(bin_header, decompressed_bin_size, true);
+	validation_result = handle_quest_bin_validation_issues(validation_result, bin_header, &decompressed_bin, &decompressed_bin_size);
 	if (validation_result) {
 		printf("Aborting due to invalid quest .bin data.\n");
 		goto error;
@@ -110,7 +111,7 @@ int main(int argc, char *argv[]) {
 	decompressed_dat_size = result;
 
 	validation_result = validate_quest_dat(decompressed_dat, decompressed_dat_size, true);
-	if (validation_result != QUESTDAT_ERROR_EOF_EMPTY_TABLE) {
+	if (validation_result) {
 		printf("Aborting due to invalid quest .dat data.\n");
 		goto error;
 	}

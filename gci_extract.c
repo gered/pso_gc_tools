@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
 	uint8_t *decompressed_bin_data = NULL;
 	uint8_t *decompressed_dat_data = NULL;
 	uint32_t bin_data_size, dat_data_size;
-	uint32_t decompressed_bin_size, decompressed_dat_size;
+	size_t decompressed_bin_size, decompressed_dat_size;
 	char out_filename[FILENAME_MAX];
 
 	if (argc != 3 && argc != 5) {
@@ -172,17 +172,8 @@ int main(int argc, char *argv[]) {
 
 	QUEST_BIN_HEADER *bin_header = (QUEST_BIN_HEADER*)decompressed_bin_data;
 	validation_result = validate_quest_bin(bin_header, decompressed_bin_size, true);
-	if (validation_result == QUESTBIN_ERROR_SMALLER_BIN_SIZE) {
-		printf("WARNING: Decompressed .bin data is larger than expected. Proceeding using the smaller .bin header bin_size value ...\n");
-		decompressed_bin_size = bin_header->bin_size;
-	} else if (validation_result == QUESTBIN_ERROR_LARGER_BIN_SIZE) {
-		if ((decompressed_bin_size + 1) == bin_header->bin_size) {
-			printf("WARNING: Decompressed .bin data is 1 byte smaller than the .bin header bin_size specifies. Correcting by adding a null byte ...\n");
-			++decompressed_bin_size;
-			decompressed_bin_data = realloc(decompressed_bin_data, decompressed_bin_size);
-			decompressed_bin_data[decompressed_bin_size - 1] = 0;
-		}
-	} else if (validation_result) {
+	validation_result = handle_quest_bin_validation_issues(validation_result, bin_header, &decompressed_bin_data, &decompressed_bin_size);
+	if (validation_result) {
 		printf("Aborting due to invalid quest .bin data.\n");
 		goto error;
 	}
@@ -199,7 +190,7 @@ int main(int argc, char *argv[]) {
 	decompressed_dat_size = result;
 
 	validation_result = validate_quest_dat(decompressed_dat_data, decompressed_dat_size, true);
-	if (validation_result != QUESTDAT_ERROR_EOF_EMPTY_TABLE) {
+	if (validation_result) {
 		printf("Aborting due to invalid quest .dat data.\n");
 		goto error;
 	}
