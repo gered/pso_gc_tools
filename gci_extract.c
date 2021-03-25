@@ -243,7 +243,7 @@ int main(int argc, char *argv[]) {
 	if (out_bin_filename)
 		strncpy(out_filename, out_bin_filename, FILENAME_MAX-1);
 	else
-		snprintf(out_filename, FILENAME_MAX-1, "q%05d.bin", bin_header->quest_number_byte);
+		snprintf(out_filename, FILENAME_MAX-1, "q%05d.bin", bin_header->quest_number_word);
 
 	printf("Writing compressed quest .bin data to %s ...\n", out_filename);
 	result = write_file(out_filename, bin_data, bin_data_size);
@@ -258,7 +258,7 @@ int main(int argc, char *argv[]) {
 	if (out_dat_filename)
 		strncpy(out_filename, out_dat_filename, FILENAME_MAX-1);
 	else
-		snprintf(out_filename, FILENAME_MAX-1, "q%05d.dat", bin_header->quest_number_byte);
+		snprintf(out_filename, FILENAME_MAX-1, "q%05d.dat", bin_header->quest_number_word);
 
 	printf("Writing compressed quest .dat data to %s ...\n", out_filename);
 	result = write_file(out_filename, dat_data, dat_data_size);
