@@ -112,6 +112,7 @@ void display_info(uint8_t *bin_data, size_t bin_length, uint8_t *dat_data, size_
 
 	printf("Validating .dat data ...\n");
 	validation_result = validate_quest_dat(decompressed_dat_data, decompressed_dat_length, true);
+	validation_result = handle_quest_dat_validation_issues(validation_result, &decompressed_dat_data, &decompressed_dat_length);
 	if (validation_result) {
 		printf("Aborting due to invalid quest .dat data.\n");
 		goto error;

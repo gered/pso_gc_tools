@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
 	/** prs decompress the .dat file and validate it **/
 	printf("Decompressing and validating .dat file ...\n");
 
-	uint32_t decompressed_dat_size;
+	size_t decompressed_dat_size;
 	result = fuzziqer_prs_decompress_buf(compressed_dat, &decompressed_dat, compressed_dat_size);
 	if (result < 0) {
 		printf("Error code %d decompressing .dat data.\n", result);
@@ -111,6 +111,7 @@ int main(int argc, char *argv[]) {
 	decompressed_dat_size = result;
 
 	validation_result = validate_quest_dat(decompressed_dat, decompressed_dat_size, true);
+	validation_result = handle_quest_dat_validation_issues(validation_result, &decompressed_dat, &decompressed_dat_size);
 	if (validation_result) {
 		printf("Aborting due to invalid quest .dat data.\n");
 		goto error;

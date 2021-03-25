@@ -16,7 +16,7 @@
 
 #define QUESTDAT_ERROR_TYPE                1
 #define QUESTDAT_ERROR_TABLE_BODY_SIZE     2
-#define QUESTDAT_ERROR_EMPTY_TABLE         4
+#define QUESTDAT_ERROR_PREMATURE_EOF       4
 
 #define PACKET_ID_QUEST_INFO_ONLINE    0x44
 #define PACKET_ID_QUEST_INFO_DOWNLOAD  0xa6
@@ -117,6 +117,7 @@ int generate_qst_data_chunk(const char *base_filename, uint8_t counter, const ui
 int validate_quest_bin(const QUEST_BIN_HEADER *header, uint32_t length, bool print_errors);
 int validate_quest_dat(const uint8_t *data, uint32_t length, bool print_errors);
 int handle_quest_bin_validation_issues(int bin_validation_result, QUEST_BIN_HEADER *bin_header, uint8_t **decompressed_bin_data, size_t *decompressed_bin_length);
+int handle_quest_dat_validation_issues(int dat_validation_result, uint8_t **decompressed_dat_data, size_t *decompressed_dat_length);
 void print_quick_quest_info(QUEST_BIN_HEADER *bin_header, size_t compressed_bin_size, size_t compressed_dat_size);
 
 #endif

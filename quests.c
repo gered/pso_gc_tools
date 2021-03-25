@@ -99,8 +99,9 @@ int validate_quest_dat(const uint8_t *data, uint32_t length, bool print_errors) 
 				// ignore this case ... this empty table is used to mark EOF apparently
 			} else {
 				if (print_errors)
-					printf("Quest dat file warning: empty table encountered at table index %d\n", table_index);
-				result |= QUESTDAT_ERROR_EMPTY_TABLE;
+					printf("Quest dat file issue: empty table encountered at table index %d with %d bytes left in file. treating this as early EOF\n", table_index, length - offset);
+				result |= QUESTDAT_ERROR_PREMATURE_EOF;
+				break;
 			}
 
 		} else if (table_header->table_size == (table_header->table_body_size - sizeof(QUEST_DAT_TABLE_HEADER))) {
@@ -154,6 +155,21 @@ int handle_quest_bin_validation_issues(int bin_validation_result, QUEST_BIN_HEAD
 	}
 
 	return bin_validation_result;
+}
+
+int handle_quest_dat_validation_issues(int dat_validation_result, uint8_t **decompressed_dat_data, size_t *decompressed_dat_length) {
+	// this one is a bit more annoying. the quest .dat format does not have any explicit value anywhere that tells you
+	// how large the entire data should be. so we have to guess. from what i can piece together, .dat files normally
+	// have a table with all zeros located at the end of the file (therefore, the last 16 bytes of an uncompressed .dat
+	// file should all be zero). in the cases where i have seen what looks like an early zero table in a .dat file, if
+	// i let the process of walking through the file continue, the subsequent tables all look like garbage with random
+	// values. so i am guessing that this is also a result of PRS compression/decompression issues ...
+	if (dat_validation_result & QUESTDAT_ERROR_PREMATURE_EOF) {
+		dat_validation_result &= ~QUESTDAT_ERROR_PREMATURE_EOF;
+		printf("WARNING: .dat file appeared to end early (found zero-length table before end of file was reached). Decompressed .dat data might be too large? Ignoring.\n");
+	}
+
+	return dat_validation_result;
 }
 
 void print_quick_quest_info(QUEST_BIN_HEADER *bin_header, size_t compressed_bin_size, size_t compressed_dat_size) {

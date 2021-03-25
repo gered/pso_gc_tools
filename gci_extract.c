@@ -190,6 +190,7 @@ int main(int argc, char *argv[]) {
 	decompressed_dat_size = result;
 
 	validation_result = validate_quest_dat(decompressed_dat_data, decompressed_dat_size, true);
+	validation_result = handle_quest_dat_validation_issues(validation_result, &decompressed_dat_data, &decompressed_dat_size);
 	if (validation_result) {
 		printf("Aborting due to invalid quest .dat data.\n");
 		goto error;
