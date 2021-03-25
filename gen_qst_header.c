@@ -19,7 +19,7 @@
 
 #include "utils.h"
 #include "quests.h"
-#include "textconv.h"
+//#include "textconv.h"
 
 int main(int argc, char *argv[]) {
 	int returncode, validation_result;
