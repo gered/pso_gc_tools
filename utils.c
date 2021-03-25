@@ -101,6 +101,20 @@ char* append_string(const char *a, const char *b) {
 	return result;
 }
 
+bool string_ends_with(const char *s, const char *suffix) {
+	if (!s || !suffix)
+		return false;
+
+	size_t s_len = strlen(s);
+	size_t suffix_len = strlen(suffix);
+	if (suffix_len > s_len)
+		return false;
+	else {
+		const char *end_of_s = s + (s_len - suffix_len);
+		return strncmp(end_of_s, suffix, suffix_len) == 0;
+	}
+}
+
 const char* get_error_message(int retvals_error_code) {
 	retvals_error_code = abs(retvals_error_code);
 

@@ -26,3 +26,7 @@ target_link_libraries(bindat_to_gcdl ${SYLVERANT_LIBRARY})
 # gci_extract
 add_executable(gci_extract gci_extract.c quests.c fuzziqer_prs.c utils.c)
 target_link_libraries(gci_extract ${SYLVERANT_LIBRARY})
+
+# quest_info
+add_executable(quest_info quest_info.c quests.c fuzziqer_prs.c utils.c)
+target_link_libraries(quest_info ${SYLVERANT_LIBRARY})
