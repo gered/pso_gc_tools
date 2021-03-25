@@ -129,9 +129,9 @@ void display_info(uint8_t *bin_data, size_t bin_length, uint8_t *dat_data, size_
 
 	printf("QUEST FILE FORMAT: ");
 	switch (qst_type) {
-		case QST_TYPE_NONE: printf("raw .bin/.dat\n"); break;
-		case QST_TYPE_DOWNLOAD: printf("download/offline .qst (0x%02X)\n", PACKET_ID_QUEST_INFO_DOWNLOAD); break;
-		case QST_TYPE_ONLINE: printf("online .qst (0x%02X)\n", PACKET_ID_QUEST_INFO_ONLINE); break;
+		case QST_TYPE_NONE: printf("PRS-compressed .bin/.dat\n"); break;
+		case QST_TYPE_DOWNLOAD: printf("download/offline .qst with encrypted PRS-compressed .bin/.dat (0x%02X)\n", PACKET_ID_QUEST_INFO_DOWNLOAD); break;
+		case QST_TYPE_ONLINE: printf("online .qst with PRS-compressed .bin/.dat (0x%02X)\n", PACKET_ID_QUEST_INFO_ONLINE); break;
 		default: printf("unknown\n");
 	}
 	printf("\n");
