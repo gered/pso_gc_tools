@@ -160,47 +160,56 @@ void display_info(uint8_t *bin_data, size_t bin_length, uint8_t *dat_data, size_
 
 	int table_index = 0;
 	uint32_t offset = 0;
+	printf("Idx Size  Table Type            Area                           Count\n");
 	while (offset < decompressed_dat_length) {
 		QUEST_DAT_TABLE_HEADER *table_header = (QUEST_DAT_TABLE_HEADER*)(decompressed_dat_data + offset);
 
-		printf("Table index %d - ", table_index);
 		switch (table_header->type) {
 			case 1:
-				printf("Object\n");
-				printf("table_body_size:                  %d\n", table_header->table_body_size);
-				printf("area:                             %s (%d)\n", get_area_string(table_header->area, bin_header->episode), table_header->area);
-				printf("object count:                     %d\n", table_header->table_body_size / 68);
+				printf("%3d %5d %-21s %-30s %5d",
+				       table_index,
+				       table_header->table_body_size,
+				       "Object",
+				       get_area_string(table_header->area, bin_header->episode),
+				       table_header->table_body_size / 68);
 				break;
 			case 2:
-				printf("NPC\n");
-				printf("table_body_size:                  %d\n", table_header->table_body_size);
-				printf("area:                             %s (%d)\n", get_area_string(table_header->area, bin_header->episode), table_header->area);
-				printf("npc count:                        %d\n", table_header->table_body_size / 72);
+				printf("%3d %5d %-21s %-30s %5d",
+				       table_index,
+				       table_header->table_body_size,
+				       "NPC",
+				       get_area_string(table_header->area, bin_header->episode),
+				       table_header->table_body_size / 72);
 				break;
 			case 3:
-				printf("Wave\n");
-				printf("table_body_size:                  %d\n", table_header->table_body_size);
-				printf("area:                             %s (%d)\n", get_area_string(table_header->area, bin_header->episode), table_header->area);
+				printf("%3d %5d %-21s %-30s",
+				       table_index,
+				       table_header->table_body_size,
+				       "Wave",
+				       get_area_string(table_header->area, bin_header->episode));
 				break;
 			case 4:
-				printf("Challenge Mode Spawn Points\n");
-				printf("table_body_size:                  %d\n", table_header->table_body_size);
-				printf("area:                             %s (%d)\n", get_area_string(table_header->area, bin_header->episode), table_header->area);
+				printf("%3d %5d %-21s %-30s",
+				       table_index,
+				       table_header->table_body_size,
+				       "Challenge Mode Spawns",
+				       get_area_string(table_header->area, bin_header->episode));
 				break;
 			case 5:
-				printf("Challenge Mode (?)\n");
-				printf("table_body_size:                  %d\n", table_header->table_body_size);
-				printf("area:                             %s (%d)\n", get_area_string(table_header->area, bin_header->episode), table_header->area);
+				printf("%3d %5d %21s %30s",
+				       table_index,
+				       table_header->table_body_size,
+				       "Challenge Mode (?)",
+				       get_area_string(table_header->area, bin_header->episode));
 				break;
 			default:
 				if (table_header->type == 0 && table_header->table_size == 0 && table_header->area == 0 && table_header->table_body_size == 0)
-					printf("EOF marker\n");
-				else {
-					printf("Unknown\n");
-					printf("type:                             %d\n", table_header->type);
-					printf("table_body_size:                  %d\n", table_header->table_body_size);
-					printf("area:                             %d\n", table_header->area);
-				}
+					printf("%3d %5d %-21s", table_index, 0, "EOF marker");
+				else
+					printf("%3d %5d Unknown (%d)",
+					       table_index,
+					       table_header->table_body_size,
+					       table_header->type);
 				break;
 		}
 		printf("\n");
