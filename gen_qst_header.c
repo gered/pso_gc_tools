@@ -85,15 +85,7 @@ int main(int argc, char *argv[]) {
 	//sjis_to_utf8(bin_header->short_description, sizeof(bin_header->short_description));
 	//sjis_to_utf8(bin_header->long_description, sizeof(bin_header->long_description));
 
-	printf("Quest: id=%d (%d), episode=%d, download=%d, unknown=0x%02x, name=\"%s\", compressed_bin_size=%ld, compressed_dat_size=%ld\n",
-	       bin_header->quest_number_byte,
-	       bin_header->quest_number_word,
-	       bin_header->episode+1,
-	       bin_header->download,
-	       bin_header->unknown,
-	       bin_header->name,
-	       bin_compressed_size,
-	       dat_compressed_size);
+	print_quick_quest_info(bin_header, bin_compressed_size, dat_compressed_size);
 
 
 	QST_HEADER qst_bin_header, qst_dat_header;

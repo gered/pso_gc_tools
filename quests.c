@@ -155,3 +155,15 @@ int handle_quest_bin_validation_issues(int bin_validation_result, QUEST_BIN_HEAD
 
 	return bin_validation_result;
 }
+
+void print_quick_quest_info(QUEST_BIN_HEADER *bin_header, size_t compressed_bin_size, size_t compressed_dat_size) {
+	printf("Quest: id=%d (%d), episode=%d, download=%d, unknown=0x%02x, name=\"%s\", compressed_bin_size=%ld, compressed_dat_size=%ld\n",
+	       bin_header->quest_number_byte,
+	       bin_header->quest_number_word,
+	       bin_header->episode + 1,
+	       bin_header->download,
+	       bin_header->unknown,
+	       bin_header->name,
+	       compressed_bin_size,
+	       compressed_dat_size);
+}

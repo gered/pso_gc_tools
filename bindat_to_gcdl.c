@@ -117,15 +117,7 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	printf("Quest: id=%d (%d), episode=%d, download=%d, unknown=0x%02x, name=\"%s\", compressed_bin_size=%d, compressed_dat_size=%d\n",
-	       bin_header->quest_number_byte,
-	       bin_header->quest_number_word,
-	       bin_header->episode+1,
-	       bin_header->download,
-	       bin_header->unknown,
-	       bin_header->name,
-	       compressed_bin_size,
-	       compressed_dat_size);
+	print_quick_quest_info(bin_header, compressed_bin_size, compressed_dat_size);
 
 
 	/** set the "download" flag in the .bin header and then re-compress the .bin data **/
