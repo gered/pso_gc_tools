@@ -133,8 +133,8 @@ void display_info(uint8_t *bin_data, size_t bin_length, uint8_t *dat_data, size_
 	printf("======================================================================\n");
 	printf("name:                             %s\n", bin_header->name);
 	printf("download flag:                    %d\n", bin_header->download);
-	printf("quest_number:                     as byte: %d    as word: %d\n", bin_header->quest_number_byte, bin_header->quest_number_word);
-	printf("episode:                          %d (%d)\n", bin_header->episode, bin_header->episode + 1);
+	printf("quest_number:                     %d (8-bit)    %d (16-bit)\n", bin_header->quest_number_byte, bin_header->quest_number_word);
+	printf("episode:                          %d (0x%02x)\n", bin_header->episode + 1, bin_header->episode);
 	printf("xffffffff:                        0x%08x\n", bin_header->xffffffff);
 	printf("unknown:                          0x%02x\n", bin_header->unknown);
 	printf("\n");
