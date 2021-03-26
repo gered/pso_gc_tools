@@ -11,8 +11,7 @@
 #define QUESTBIN_ERROR_LARGER_BIN_SIZE     2
 #define QUESTBIN_ERROR_SMALLER_BIN_SIZE    4
 #define QUESTBIN_ERROR_NAME                8
-#define QUESTBIN_ERROR_NUMBER              16
-#define QUESTBIN_ERROR_EPISODE             32
+#define QUESTBIN_ERROR_EPISODE             16
 
 #define QUESTDAT_ERROR_TYPE                1
 #define QUESTDAT_ERROR_TABLE_BODY_SIZE     2

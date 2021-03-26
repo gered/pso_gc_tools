@@ -63,11 +63,6 @@ int validate_quest_bin(const QUEST_BIN_HEADER *header, uint32_t length, bool pri
 			printf("Quest bin file issue: blank quest name\n");
 		result |= QUESTBIN_ERROR_NAME;
 	}
-	if (header->quest_number_word == 0) {
-		if (print_errors)
-			printf("Quest bin file issue: quest_number is zero\n");
-		result |= QUESTBIN_ERROR_NAME;
-	}
 	if (header->episode > 1) {
 		if (print_errors)
 			printf("Quest bin file issue: unexpected episode value %d, quest was probably created using a 16-bit quest_number\n", header->episode);
