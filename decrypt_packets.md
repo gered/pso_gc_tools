@@ -9,6 +9,12 @@ to serve up quests for download was resulting in unusable quest files on Gamecub
 quest download communication better by analyzing the packets being sent from a working implementation and comparing it
 to what my local login_server instance was sending proved invaluable to me.
 
+Of course, once I spent a bunch of time looking at packet data and comparing things and gaining the understanding about
+how Gamecube download quest data is composed and sent to the game client, I only then learnt that [Qedit](https://qedit.info/)
+can save to a Gamecube download .qst file directly. Heh. :-) Oh well. This tool may still prove useful to anyone looking
+to gain a better understanding of how PSO server/client communication works by looking at the packet exchanges directly
+I guess.
+
 ## Network Protocol
 
 After the initial `0x02` or `0x17` packet sent from the server to the client (which contains the client and server 

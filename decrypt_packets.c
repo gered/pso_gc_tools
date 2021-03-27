@@ -5,6 +5,11 @@
  * what PSO servers have done behind the scenes to prepare .bin/.dat quest files into something that works as an
  * offline/download quest which is playable from a Gamecube memory card.
  *
+ * Of course, after gaining an understanding about how this all works, I only then realized that Qedit can save quests
+ * directly to the necessary Gamecube download quest file format. Heh. Oh, well, that's just how it goes I guess! :-)
+ * This tool may still prove useful to anyone interested in understanding the packet exchanges between a PSO client
+ * and server I suppose.
+ *
  * Given two binary files containing server->client and client->server packet data (separately), as long as the
  * packet data was captured from the very beginning of the connection, this will decrypt the packet data and display
  * it as raw packets.
