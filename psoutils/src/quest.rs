@@ -2,10 +2,8 @@ use std::path::Path;
 
 use thiserror::Error;
 
-use crate::bytes::{ReadBytesError, WriteBytesError};
-use crate::quest::bin::QuestBin;
-use crate::quest::dat::QuestDat;
-use crate::text::LanguageError;
+use crate::quest::bin::{QuestBin, QuestBinError};
+use crate::quest::dat::{QuestDat, QuestDatError};
 
 pub mod bin;
 pub mod dat;
@@ -15,14 +13,11 @@ pub enum QuestError {
     #[error("I/O error reading quest")]
     IoError(#[from] std::io::Error),
 
-    #[error("String encoding error during processing of quest string field")]
-    StringEncodingError(#[from] LanguageError),
+    #[error("Error processing quest bin")]
+    QuestBinError(#[from] QuestBinError),
 
-    #[error("Error reading quest from bytes")]
-    ReadFromBytesError(#[from] ReadBytesError),
-
-    #[error("Error writing quest as bytes")]
-    WriteAsBytesError(#[from] WriteBytesError),
+    #[error("Error processing quest dat")]
+    QuestDatError(#[from] QuestDatError),
 }
 
 pub struct Quest {

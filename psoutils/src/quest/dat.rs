@@ -4,10 +4,11 @@ use std::io::{BufReader, Cursor, Read};
 use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use thiserror::Error;
 
 use crate::bytes::*;
 use crate::compression::{prs_compress, prs_decompress};
-use crate::quest::QuestError;
+use crate::text::LanguageError;
 
 pub const QUEST_DAT_TABLE_HEADER_SIZE: usize = 16;
 
@@ -53,6 +54,21 @@ pub const QUEST_DAT_AREAS: [[&str; 18]; 2] = [
         "Control Tower",
     ],
 ];
+
+#[derive(Error, Debug)]
+pub enum QuestDatError {
+    #[error("I/O error while processing quest dat")]
+    IoError(#[from] std::io::Error),
+
+    #[error("String encoding error during processing of quest dat string field")]
+    StringEncodingError(#[from] LanguageError),
+
+    #[error("Error reading quest dat from bytes")]
+    ReadFromBytesError(#[from] ReadBytesError),
+
+    #[error("Error writing quest dat as bytes")]
+    WriteAsBytesError(#[from] WriteBytesError),
+}
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum QuestDatTableType {
@@ -154,20 +170,20 @@ pub struct QuestDat {
 }
 
 impl QuestDat {
-    pub fn from_compressed_bytes(bytes: &[u8]) -> Result<QuestDat, QuestError> {
+    pub fn from_compressed_bytes(bytes: &[u8]) -> Result<QuestDat, QuestDatError> {
         let decompressed = prs_decompress(&bytes);
         let mut reader = Cursor::new(decompressed);
         Ok(QuestDat::read_from_bytes(&mut reader)?)
     }
 
-    pub fn from_compressed_file(path: &Path) -> Result<QuestDat, QuestError> {
+    pub fn from_compressed_file(path: &Path) -> Result<QuestDat, QuestDatError> {
         let mut file = File::open(path)?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
         QuestDat::from_compressed_bytes(&buffer)
     }
 
-    pub fn from_uncompressed_file(path: &Path) -> Result<QuestDat, QuestError> {
+    pub fn from_uncompressed_file(path: &Path) -> Result<QuestDat, QuestDatError> {
         let file = File::open(path)?;
         let mut reader = BufReader::new(file);
         Ok(QuestDat::read_from_bytes(&mut reader)?)
@@ -489,7 +505,7 @@ mod tests {
     }
 
     #[test]
-    pub fn read_compressed_quest_58_dat() -> Result<(), QuestError> {
+    pub fn read_compressed_quest_58_dat() -> Result<(), QuestDatError> {
         let path = Path::new("assets/test/q058-ret-gc.dat");
         let dat = QuestDat::from_compressed_file(&path)?;
         validate_quest_58_dat(&dat);
@@ -497,7 +513,7 @@ mod tests {
     }
 
     #[test]
-    pub fn read_uncompressed_quest_58_dat() -> Result<(), QuestError> {
+    pub fn read_uncompressed_quest_58_dat() -> Result<(), QuestDatError> {
         let path = Path::new("assets/test/q058-ret-gc.uncompressed.dat");
         let dat = QuestDat::from_uncompressed_file(&path)?;
         validate_quest_58_dat(&dat);
@@ -505,7 +521,7 @@ mod tests {
     }
 
     #[test]
-    pub fn read_compressed_quest_118_dat() -> Result<(), QuestError> {
+    pub fn read_compressed_quest_118_dat() -> Result<(), QuestDatError> {
         let path = Path::new("assets/test/q118-vr-gc.dat");
         let dat = QuestDat::from_compressed_file(&path)?;
         validate_quest_118_dat(&dat);
@@ -513,7 +529,7 @@ mod tests {
     }
 
     #[test]
-    pub fn read_uncompressed_quest_118_dat() -> Result<(), QuestError> {
+    pub fn read_uncompressed_quest_118_dat() -> Result<(), QuestDatError> {
         let path = Path::new("assets/test/q118-vr-gc.uncompressed.dat");
         let dat = QuestDat::from_uncompressed_file(&path)?;
         validate_quest_118_dat(&dat);

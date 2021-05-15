@@ -3,11 +3,11 @@ use std::io::{BufReader, Cursor, Read};
 use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use thiserror::Error;
 
 use crate::bytes::*;
 use crate::compression::{prs_compress, prs_decompress};
-use crate::quest::QuestError;
-use crate::text::Language;
+use crate::text::{Language, LanguageError};
 
 pub const QUEST_BIN_NAME_LENGTH: usize = 32;
 pub const QUEST_BIN_SHORT_DESCRIPTION_LENGTH: usize = 128;
@@ -17,6 +17,21 @@ pub const QUEST_BIN_HEADER_SIZE: usize = 20
     + QUEST_BIN_NAME_LENGTH
     + QUEST_BIN_SHORT_DESCRIPTION_LENGTH
     + QUEST_BIN_LONG_DESCRIPTION_LENGTH;
+
+#[derive(Error, Debug)]
+pub enum QuestBinError {
+    #[error("I/O error while processing quest bin")]
+    IoError(#[from] std::io::Error),
+
+    #[error("String encoding error during processing of quest bin string field")]
+    StringEncodingError(#[from] LanguageError),
+
+    #[error("Error reading quest bin from bytes")]
+    ReadFromBytesError(#[from] ReadBytesError),
+
+    #[error("Error writing quest bin as bytes")]
+    WriteAsBytesError(#[from] WriteBytesError),
+}
 
 #[derive(Copy, Clone)]
 pub struct QuestNumberAndEpisode {
@@ -65,20 +80,20 @@ pub struct QuestBin {
 }
 
 impl QuestBin {
-    pub fn from_compressed_bytes(bytes: &[u8]) -> Result<QuestBin, QuestError> {
+    pub fn from_compressed_bytes(bytes: &[u8]) -> Result<QuestBin, QuestBinError> {
         let decompressed = prs_decompress(&bytes);
         let mut reader = Cursor::new(decompressed);
         Ok(QuestBin::read_from_bytes(&mut reader)?)
     }
 
-    pub fn from_compressed_file(path: &Path) -> Result<QuestBin, QuestError> {
+    pub fn from_compressed_file(path: &Path) -> Result<QuestBin, QuestBinError> {
         let mut file = File::open(path)?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
         QuestBin::from_compressed_bytes(&buffer)
     }
 
-    pub fn from_uncompressed_file(path: &Path) -> Result<QuestBin, QuestError> {
+    pub fn from_uncompressed_file(path: &Path) -> Result<QuestBin, QuestBinError> {
         let file = File::open(path)?;
         let mut reader = BufReader::new(file);
         Ok(QuestBin::read_from_bytes(&mut reader)?)
@@ -310,7 +325,7 @@ mod tests {
     }
 
     #[test]
-    pub fn read_compressed_quest_58_bin() -> Result<(), QuestError> {
+    pub fn read_compressed_quest_58_bin() -> Result<(), QuestBinError> {
         let path = Path::new("assets/test/q058-ret-gc.bin");
         let bin = QuestBin::from_compressed_file(&path)?;
         validate_quest_58_bin(&bin);
@@ -318,7 +333,7 @@ mod tests {
     }
 
     #[test]
-    pub fn read_uncompressed_quest_58_bin() -> Result<(), QuestError> {
+    pub fn read_uncompressed_quest_58_bin() -> Result<(), QuestBinError> {
         let path = Path::new("assets/test/q058-ret-gc.uncompressed.bin");
         let bin = QuestBin::from_uncompressed_file(&path)?;
         validate_quest_58_bin(&bin);
@@ -326,7 +341,7 @@ mod tests {
     }
 
     #[test]
-    pub fn read_compressed_quest_118_bin() -> Result<(), QuestError> {
+    pub fn read_compressed_quest_118_bin() -> Result<(), QuestBinError> {
         let path = Path::new("assets/test/q118-vr-gc.bin");
         let bin = QuestBin::from_compressed_file(&path)?;
         validate_quest_118_bin(&bin);
@@ -334,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    pub fn read_uncompressed_quest_118_bin() -> Result<(), QuestError> {
+    pub fn read_uncompressed_quest_118_bin() -> Result<(), QuestBinError> {
         let path = Path::new("assets/test/q118-vr-gc.uncompressed.bin");
         let bin = QuestBin::from_uncompressed_file(&path)?;
         validate_quest_118_bin(&bin);
