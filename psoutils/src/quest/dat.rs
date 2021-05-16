@@ -6,9 +6,7 @@ use std::path::Path;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
 
-use crate::bytes::*;
 use crate::compression::{prs_compress, prs_decompress};
-use crate::text::LanguageError;
 
 pub const QUEST_DAT_TABLE_HEADER_SIZE: usize = 16;
 
@@ -60,14 +58,8 @@ pub enum QuestDatError {
     #[error("I/O error while processing quest dat")]
     IoError(#[from] std::io::Error),
 
-    #[error("String encoding error during processing of quest dat string field")]
-    StringEncodingError(#[from] LanguageError),
-
-    #[error("Error reading quest dat from bytes")]
-    ReadFromBytesError(#[from] ReadBytesError),
-
-    #[error("Error writing quest dat as bytes")]
-    WriteAsBytesError(#[from] WriteBytesError),
+    #[error("Bad quest dat data format: {0}")]
+    DataFormatError(String),
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -173,7 +165,56 @@ impl QuestDat {
     pub fn from_compressed_bytes(bytes: &[u8]) -> Result<QuestDat, QuestDatError> {
         let decompressed = prs_decompress(&bytes);
         let mut reader = Cursor::new(decompressed);
-        Ok(QuestDat::read_from_bytes(&mut reader)?)
+        Ok(QuestDat::from_uncompressed_bytes(&mut reader)?)
+    }
+
+    pub fn from_uncompressed_bytes<T: ReadBytesExt>(
+        reader: &mut T,
+    ) -> Result<QuestDat, QuestDatError> {
+        let mut tables = Vec::new();
+        let mut index = 0;
+        loop {
+            let table_type = reader.read_u32::<LittleEndian>()?;
+            let table_size = reader.read_u32::<LittleEndian>()?;
+            let area = reader.read_u32::<LittleEndian>()?;
+            let table_body_size = reader.read_u32::<LittleEndian>()?;
+
+            // quest .dat files appear to always use a "zero-table" to mark the end of the file
+            if table_type == 0 && table_size == 0 && area == 0 && table_body_size == 0 {
+                break;
+            }
+
+            if table_size != table_body_size + QUEST_DAT_TABLE_HEADER_SIZE as u32 {
+                return Err(QuestDatError::DataFormatError(format!(
+                    "Malformed table at index {}. table_size != table_body_size + 16",
+                    index
+                )));
+            }
+
+            let table_type: QuestDatTableType = match table_type.into() {
+                QuestDatTableType::Unknown(n) => {
+                    return Err(QuestDatError::DataFormatError(format!(
+                        "Invalid table_type {} for table at index {}",
+                        n, index
+                    )))
+                }
+                otherwise => otherwise,
+            };
+
+            let mut body_bytes = vec![0u8; table_body_size as usize];
+            reader.read_exact(&mut body_bytes)?;
+
+            tables.push(QuestDatTable {
+                header: QuestDatTableHeader { table_type, area },
+                bytes: body_bytes.into_boxed_slice(),
+            });
+
+            index += 1;
+        }
+
+        Ok(QuestDat {
+            tables: tables.into_boxed_slice(),
+        })
     }
 
     pub fn from_compressed_file(path: &Path) -> Result<QuestDat, QuestDatError> {
@@ -186,61 +227,13 @@ impl QuestDat {
     pub fn from_uncompressed_file(path: &Path) -> Result<QuestDat, QuestDatError> {
         let file = File::open(path)?;
         let mut reader = BufReader::new(file);
-        Ok(QuestDat::read_from_bytes(&mut reader)?)
+        Ok(QuestDat::from_uncompressed_bytes(&mut reader)?)
     }
 
-    pub fn to_compressed_bytes(&self) -> Result<Box<[u8]>, WriteBytesError> {
-        let bytes = self.to_uncompressed_bytes()?;
-        Ok(prs_compress(bytes.as_ref()))
-    }
-
-    pub fn to_uncompressed_bytes(&self) -> Result<Box<[u8]>, WriteBytesError> {
-        let mut bytes = Cursor::new(Vec::new());
-        self.write_as_bytes(&mut bytes)?;
-        Ok(bytes.into_inner().into_boxed_slice())
-    }
-
-    pub fn calculate_size(&self) -> usize {
-        self.tables
-            .iter()
-            .map(|table| QUEST_DAT_TABLE_HEADER_SIZE + table.body_size() as usize)
-            .sum()
-    }
-}
-
-impl<T: ReadBytesExt> ReadFromBytes<T> for QuestDat {
-    fn read_from_bytes(reader: &mut T) -> Result<Self, ReadBytesError> {
-        let mut tables = Vec::new();
-        loop {
-            let table_type = reader.read_u32::<LittleEndian>()?;
-            let table_size = reader.read_u32::<LittleEndian>()?;
-            let area = reader.read_u32::<LittleEndian>()?;
-            let table_body_size = reader.read_u32::<LittleEndian>()?;
-
-            // quest .dat files appear to always use a "zero-table" to mark the end of the file
-            if table_type == 0 && table_size == 0 && area == 0 && table_body_size == 0 {
-                break;
-            }
-
-            let mut body_bytes = vec![0u8; table_body_size as usize];
-            reader.read_exact(&mut body_bytes)?;
-
-            let table_type: QuestDatTableType = table_type.into();
-
-            tables.push(QuestDatTable {
-                header: QuestDatTableHeader { table_type, area },
-                bytes: body_bytes.into_boxed_slice(),
-            });
-        }
-
-        Ok(QuestDat {
-            tables: tables.into_boxed_slice(),
-        })
-    }
-}
-
-impl<T: WriteBytesExt> WriteAsBytes<T> for QuestDat {
-    fn write_as_bytes(&self, writer: &mut T) -> Result<(), WriteBytesError> {
+    pub fn to_uncompressed_bytes<T: WriteBytesExt>(
+        &self,
+        writer: &mut T,
+    ) -> Result<(), QuestDatError> {
         for table in self.tables.iter() {
             let table_size = table.calculate_size() as u32;
             let table_body_size = table.body_size() as u32;
@@ -260,6 +253,24 @@ impl<T: WriteBytesExt> WriteAsBytes<T> for QuestDat {
         writer.write_u32::<LittleEndian>(0)?; // table_body_size
 
         Ok(())
+    }
+
+    pub fn as_uncompressed_bytes(&self) -> Result<Box<[u8]>, QuestDatError> {
+        let mut buffer = Cursor::new(Vec::<u8>::new());
+        self.to_uncompressed_bytes(&mut buffer)?;
+        Ok(buffer.into_inner().into_boxed_slice())
+    }
+
+    pub fn as_compressed_bytes(&self) -> Result<Box<[u8]>, QuestDatError> {
+        let uncompressed = self.as_uncompressed_bytes()?;
+        Ok(prs_compress(uncompressed.as_ref()))
+    }
+
+    pub fn calculate_size(&self) -> usize {
+        self.tables
+            .iter()
+            .map(|table| QUEST_DAT_TABLE_HEADER_SIZE + table.body_size() as usize)
+            .sum()
     }
 }
 

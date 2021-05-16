@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::bytes::*;
 use crate::compression::{prs_compress, prs_decompress};
-use crate::text::{Language, LanguageError};
+use crate::text::Language;
 
 pub const QUEST_BIN_NAME_LENGTH: usize = 32;
 pub const QUEST_BIN_SHORT_DESCRIPTION_LENGTH: usize = 128;
@@ -23,14 +23,8 @@ pub enum QuestBinError {
     #[error("I/O error while processing quest bin")]
     IoError(#[from] std::io::Error),
 
-    #[error("String encoding error during processing of quest bin string field")]
-    StringEncodingError(#[from] LanguageError),
-
-    #[error("Error reading quest bin from bytes")]
-    ReadFromBytesError(#[from] ReadBytesError),
-
-    #[error("Error writing quest bin as bytes")]
-    WriteAsBytesError(#[from] WriteBytesError),
+    #[error("Bad quest bin data format: {0}")]
+    DataFormatError(String),
 }
 
 #[derive(Copy, Clone)]
@@ -83,58 +77,30 @@ impl QuestBin {
     pub fn from_compressed_bytes(bytes: &[u8]) -> Result<QuestBin, QuestBinError> {
         let decompressed = prs_decompress(&bytes);
         let mut reader = Cursor::new(decompressed);
-        Ok(QuestBin::read_from_bytes(&mut reader)?)
+        Ok(QuestBin::from_uncompressed_bytes(&mut reader)?)
     }
 
-    pub fn from_compressed_file(path: &Path) -> Result<QuestBin, QuestBinError> {
-        let mut file = File::open(path)?;
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)?;
-        QuestBin::from_compressed_bytes(&buffer)
-    }
-
-    pub fn from_uncompressed_file(path: &Path) -> Result<QuestBin, QuestBinError> {
-        let file = File::open(path)?;
-        let mut reader = BufReader::new(file);
-        Ok(QuestBin::read_from_bytes(&mut reader)?)
-    }
-
-    pub fn to_compressed_bytes(&self) -> Result<Box<[u8]>, WriteBytesError> {
-        let bytes = self.to_uncompressed_bytes()?;
-        Ok(prs_compress(bytes.as_ref()))
-    }
-
-    pub fn to_uncompressed_bytes(&self) -> Result<Box<[u8]>, WriteBytesError> {
-        let mut bytes = Cursor::new(Vec::new());
-        self.write_as_bytes(&mut bytes)?;
-        Ok(bytes.into_inner().into_boxed_slice())
-    }
-
-    pub fn calculate_size(&self) -> usize {
-        QUEST_BIN_HEADER_SIZE
-            + self.object_code.as_ref().len()
-            + self.function_offset_table.as_ref().len()
-    }
-}
-
-impl<T: ReadBytesExt> ReadFromBytes<T> for QuestBin {
-    fn read_from_bytes(reader: &mut T) -> Result<Self, ReadBytesError> {
+    pub fn from_uncompressed_bytes<T: ReadBytesExt>(
+        reader: &mut T,
+    ) -> Result<QuestBin, QuestBinError> {
         let object_code_offset = reader.read_u32::<LittleEndian>()?;
+        if object_code_offset != QUEST_BIN_HEADER_SIZE as u32 {
+            return Err(QuestBinError::DataFormatError(format!(
+                "Invalid object_code_offset found: {}",
+                object_code_offset
+            )));
+        }
+
         let function_offset_table_offset = reader.read_u32::<LittleEndian>()?;
         let bin_size = reader.read_u32::<LittleEndian>()?;
-        let _xfffffff = reader.read_u32::<LittleEndian>()?; // always 0xffffffff
+        let _xfffffff = reader.read_u32::<LittleEndian>()?; // always expected to be 0xffffffff
         let is_download = reader.read_u8()?;
+        let is_download = is_download != 0;
+
         let language = reader.read_u8()?;
-        let quest_number_and_episode = reader.read_u16::<LittleEndian>()?;
-
-        let is_download = if is_download == 0 { false } else { true };
-        let quest_number = QuestNumber {
-            number: quest_number_and_episode,
-        };
-
         let language = match Language::from_number(language) {
             Err(e) => {
-                return Err(ReadBytesError::UnexpectedError(format!(
+                return Err(QuestBinError::DataFormatError(format!(
                     "Unsupported language value found in quest header: {}",
                     e
                 )))
@@ -142,11 +108,16 @@ impl<T: ReadBytesExt> ReadFromBytes<T> for QuestBin {
             Ok(encoding) => encoding,
         };
 
+        let quest_number_and_episode = reader.read_u16::<LittleEndian>()?;
+        let quest_number = QuestNumber {
+            number: quest_number_and_episode,
+        };
+
         let mut name_bytes = [0u8; QUEST_BIN_NAME_LENGTH];
         reader.read_exact(&mut name_bytes)?;
         let name = match language.decode_text(name_bytes.as_unpadded_slice()) {
             Err(e) => {
-                return Err(ReadBytesError::UnexpectedError(format!(
+                return Err(QuestBinError::DataFormatError(format!(
                     "Error decoding string in quest 'name' field: {}",
                     e
                 )))
@@ -159,7 +130,7 @@ impl<T: ReadBytesExt> ReadFromBytes<T> for QuestBin {
         let short_description =
             match language.decode_text(short_description_bytes.as_unpadded_slice()) {
                 Err(e) => {
-                    return Err(ReadBytesError::UnexpectedError(format!(
+                    return Err(QuestBinError::DataFormatError(format!(
                         "Error decoding string in quest 'short_description' field: {}",
                         e
                     )))
@@ -172,7 +143,7 @@ impl<T: ReadBytesExt> ReadFromBytes<T> for QuestBin {
         let long_description =
             match language.decode_text(long_description_bytes.as_unpadded_slice()) {
                 Err(e) => {
-                    return Err(ReadBytesError::UnexpectedError(format!(
+                    return Err(QuestBinError::DataFormatError(format!(
                         "Error decoding string in quest 'long_description' field: {}",
                         e
                     )))
@@ -186,12 +157,17 @@ impl<T: ReadBytesExt> ReadFromBytes<T> for QuestBin {
 
         let function_offset_table_size = bin_size - function_offset_table_offset;
         if function_offset_table_size % 4 != 0 {
-            return Err(ReadBytesError::UnexpectedError(String::from("Non-dword-sized bytes found in quest bin where function offset table is expected (probably a PRS decompression issue?)")));
+            return Err(QuestBinError::DataFormatError(
+                format!(
+                    "Non-dword-sized data segment found in quest bin where function offset table is expected. Function offset table data size: {}",
+                    function_offset_table_size
+                )
+            ));
         }
         let mut function_offset_table = vec![0u8; function_offset_table_size as usize];
         reader.read_exact(&mut function_offset_table)?;
 
-        Ok(QuestBin {
+        let bin = QuestBin {
             header: QuestBinHeader {
                 is_download,
                 language,
@@ -202,12 +178,36 @@ impl<T: ReadBytesExt> ReadFromBytes<T> for QuestBin {
             },
             object_code: object_code.into_boxed_slice(),
             function_offset_table: function_offset_table.into_boxed_slice(),
-        })
-    }
-}
+        };
 
-impl<T: WriteBytesExt> WriteAsBytes<T> for QuestBin {
-    fn write_as_bytes(&self, writer: &mut T) -> Result<(), WriteBytesError> {
+        let our_bin_size = bin.calculate_size();
+        if our_bin_size != bin_size as usize {
+            return Err(QuestBinError::DataFormatError(format!(
+                "bin_size value {} found in header does not match size of data actually read {}",
+                bin_size, our_bin_size
+            )));
+        }
+
+        Ok(bin)
+    }
+
+    pub fn from_compressed_file(path: &Path) -> Result<QuestBin, QuestBinError> {
+        let mut file = File::open(path)?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)?;
+        QuestBin::from_compressed_bytes(&buffer)
+    }
+
+    pub fn from_uncompressed_file(path: &Path) -> Result<QuestBin, QuestBinError> {
+        let file = File::open(path)?;
+        let mut reader = BufReader::new(file);
+        Ok(QuestBin::from_uncompressed_bytes(&mut reader)?)
+    }
+
+    pub fn to_uncompressed_bytes<T: WriteBytesExt>(
+        &self,
+        writer: &mut T,
+    ) -> Result<(), QuestBinError> {
         let bin_size = self.calculate_size();
         let object_code_offset = QUEST_BIN_HEADER_SIZE;
         let function_offset_table_offset = QUEST_BIN_HEADER_SIZE + self.object_code.len();
@@ -224,7 +224,7 @@ impl<T: WriteBytesExt> WriteAsBytes<T> for QuestBin {
 
         let name_bytes = match language.encode_text(&self.header.name) {
             Err(e) => {
-                return Err(WriteBytesError::UnexpectedError(format!(
+                return Err(QuestBinError::DataFormatError(format!(
                     "Error encoding string for quest 'name' field: {}",
                     e
                 )))
@@ -235,7 +235,7 @@ impl<T: WriteBytesExt> WriteAsBytes<T> for QuestBin {
 
         let short_description_bytes = match language.encode_text(&self.header.short_description) {
             Err(e) => {
-                return Err(WriteBytesError::UnexpectedError(format!(
+                return Err(QuestBinError::DataFormatError(format!(
                     "Error encoding string for quest 'short_description_bytes' field: {}",
                     e
                 )))
@@ -248,7 +248,7 @@ impl<T: WriteBytesExt> WriteAsBytes<T> for QuestBin {
 
         let long_description_bytes = match language.encode_text(&self.header.long_description) {
             Err(e) => {
-                return Err(WriteBytesError::UnexpectedError(format!(
+                return Err(QuestBinError::DataFormatError(format!(
                     "Error encoding string for quest 'long_description_bytes' field: {}",
                     e
                 )))
@@ -263,6 +263,23 @@ impl<T: WriteBytesExt> WriteAsBytes<T> for QuestBin {
         writer.write_all(self.function_offset_table.as_ref())?;
 
         Ok(())
+    }
+
+    pub fn as_uncompressed_bytes(&self) -> Result<Box<[u8]>, QuestBinError> {
+        let mut buffer = Cursor::new(Vec::<u8>::new());
+        self.to_uncompressed_bytes(&mut buffer)?;
+        Ok(buffer.into_inner().into_boxed_slice())
+    }
+
+    pub fn as_compressed_bytes(&self) -> Result<Box<[u8]>, QuestBinError> {
+        let uncompressed = self.as_uncompressed_bytes()?;
+        Ok(prs_compress(uncompressed.as_ref()))
+    }
+
+    pub fn calculate_size(&self) -> usize {
+        QUEST_BIN_HEADER_SIZE
+            + self.object_code.as_ref().len()
+            + self.function_offset_table.as_ref().len()
     }
 }
 

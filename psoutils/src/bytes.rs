@@ -1,32 +1,3 @@
-use byteorder::{ReadBytesExt, WriteBytesExt};
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum ReadBytesError {
-    #[error("Unexpected error while reading bytes: {0}")]
-    UnexpectedError(String),
-
-    #[error("I/O error reading bytes")]
-    IoError(#[from] std::io::Error),
-}
-
-pub trait ReadFromBytes<T: ReadBytesExt>: Sized {
-    fn read_from_bytes(reader: &mut T) -> Result<Self, ReadBytesError>;
-}
-
-#[derive(Error, Debug)]
-pub enum WriteBytesError {
-    #[error("Unexpected error while writing bytes: {0}")]
-    UnexpectedError(String),
-
-    #[error("I/O error writing bytes")]
-    IoError(#[from] std::io::Error),
-}
-
-pub trait WriteAsBytes<T: WriteBytesExt> {
-    fn write_as_bytes(&self, writer: &mut T) -> Result<(), WriteBytesError>;
-}
-
 pub trait FixedLengthByteArrays {
     fn as_unpadded_slice(&self) -> &[u8];
     fn to_fixed_length(&self, length: usize) -> Vec<u8>;
