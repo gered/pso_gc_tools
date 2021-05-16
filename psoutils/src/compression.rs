@@ -1,3 +1,5 @@
+use std::ffi::c_void;
+
 struct Context {
     bitpos: u8,
     forward_log: Vec<u8>,
@@ -56,7 +58,7 @@ impl Context {
         self.put_control_bit(false);
         self.put_control_bit((size >> 1) & 1 == 1);
         self.put_control_bit_nosave(size & 1 == 1);
-        self.put_static_data((offset & 0xff) as u8);
+        self.put_static_data(offset as u8);
         self.put_control_save();
     }
 
@@ -65,13 +67,13 @@ impl Context {
             self.put_control_bit(false);
             self.put_control_bit_nosave(true);
             self.put_static_data((((offset << 3) & 0xf8) as u8) | ((size - 2) & 0x07));
-            self.put_static_data(((offset >> 5) & 0xff) as u8);
+            self.put_static_data((offset >> 5) as u8);
             self.put_control_save();
         } else {
             self.put_control_bit(false);
             self.put_control_bit_nosave(true);
             self.put_static_data(((offset << 3) & 0xf8) as u8);
-            self.put_static_data(((offset >> 5) & 0xff) as u8);
+            self.put_static_data((offset >> 5) as u8);
             self.put_static_data(size - 1);
             self.put_control_save();
         }
@@ -111,7 +113,17 @@ fn is_mem_equal(base: &[u8], offset1: isize, offset2: isize, length: usize) -> b
         if ((offset1 + length) > base.len()) || ((offset2 + length) > base.len()) {
             false
         } else {
-            base[offset1..(offset1 + length)] == base[offset2..(offset2 + length)]
+            // calling memcmp directly here instead of doing slice comparisons is at least twice as
+            // fast in non-release builds right now. since we're doing a bunch of pre-checks anyway
+            // here (else, even the original slice comparisons would occasionally panic), just
+            // calling memcmp in all cases doesn't seem to be too bad an idea?
+            // NOTE: i actually wanted to use the memcmp from compiler_builtins but that seems to
+            // be nightly-only at the moment??
+
+            //base[offset1..(offset1 + length)] == base[offset2..(offset2 + length)]
+            let a = (&base[offset1] as *const u8) as *const c_void;
+            let b = (&base[offset2] as *const u8) as *const c_void;
+            unsafe { libc::memcmp(a, b, length) == 0 }
         }
     }
 }
@@ -120,7 +132,7 @@ pub fn prs_compress(source: &[u8]) -> Box<[u8]> {
     let mut pc = Context::new();
 
     let mut x: isize = 0;
-    while x < (source.len() as isize) {
+    while x < source.len() as isize {
         let mut lsoffset: isize = 0;
         let mut lssize: isize = 0;
         let mut xsize: usize = 0;
@@ -128,12 +140,12 @@ pub fn prs_compress(source: &[u8]) -> Box<[u8]> {
         let mut y: isize = x - 3;
         while (y > 0) && (y > (x - 0x1ff0)) && (xsize < 255) {
             xsize = 3;
-            if is_mem_equal(source, y as isize, x as isize, xsize) {
+            if is_mem_equal(source, y, x, xsize) {
                 xsize += 1;
                 while (xsize < 256)
                     && ((y + xsize as isize) < x)
-                    && ((x + xsize as isize) <= (source.len() as isize))
-                    && is_mem_equal(source, y as isize, x as isize, xsize)
+                    && ((x + xsize as isize) <= source.len() as isize)
+                    && is_mem_equal(source, y, x, xsize)
                 {
                     xsize += 1;
                 }
@@ -649,7 +661,4 @@ I do not like green eggs and ham."
             assert_eq!(*test.uncompressed, *prs_decompress(&test.compressed));
         }
     }
-
-    #[test]
-    pub fn testit() {}
 }

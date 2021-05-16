@@ -3,3 +3,7 @@
 members = [
     "psoutils",
 ]
+
+
+[profile.dev]
+opt-level = 1
