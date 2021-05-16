@@ -30,19 +30,13 @@ pub trait WriteAsBytes<T: WriteBytesExt> {
 pub trait FixedLengthByteArrays {
     fn as_unpadded_slice(&self) -> &[u8];
     fn to_fixed_length(&self, length: usize) -> Vec<u8>;
+    fn to_array<const N: usize>(&self) -> [u8; N];
 }
 
 impl<T: AsRef<[u8]> + ?Sized> FixedLengthByteArrays for T {
     fn as_unpadded_slice(&self) -> &[u8] {
         let end = self.as_ref().iter().take_while(|&b| *b != 0).count();
         &self.as_ref()[0..end]
-        /*
-        self.as_ref()
-            .iter()
-            .take_while(|&b| *b != 0u8)
-            .map(|b| *b)
-            .collect()
-             */
     }
 
     fn to_fixed_length(&self, length: usize) -> Vec<u8> {
@@ -51,6 +45,17 @@ impl<T: AsRef<[u8]> + ?Sized> FixedLengthByteArrays for T {
             result.resize(length, 0u8);
         }
         result
+    }
+
+    fn to_array<const N: usize>(&self) -> [u8; N] {
+        assert_ne!(N, 0);
+        let mut array = [0u8; N];
+        if N <= self.as_ref().len() {
+            array.copy_from_slice(&self.as_ref()[0..N]);
+        } else {
+            array[0..self.as_ref().len()].copy_from_slice(&self.as_ref())
+        }
+        array
     }
 }
 
