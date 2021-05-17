@@ -292,13 +292,9 @@ mod tests {
         assert_eq!(4008, bin.function_offset_table.len());
         assert_eq!(6476, bin.calculate_size());
 
-        assert_eq!(58, unsafe { bin.header.quest_number.number });
-        assert_eq!(0, unsafe {
-            bin.header.quest_number.number_and_episode.episode
-        });
-        assert_eq!(58, unsafe {
-            bin.header.quest_number.number_and_episode.number
-        });
+        assert_eq!(58, bin.header.quest_number());
+        assert_eq!(0, bin.header.episode());
+        assert_eq!(58, bin.header.quest_number_u16());
 
         assert_eq!(false, bin.header.is_download);
         assert_eq!(Language::Japanese, bin.header.language);
@@ -319,13 +315,9 @@ mod tests {
         assert_eq!(22004, bin.function_offset_table.len());
         assert_eq!(55332, bin.calculate_size());
 
-        assert_eq!(118, unsafe { bin.header.quest_number.number });
-        assert_eq!(0, unsafe {
-            bin.header.quest_number.number_and_episode.episode
-        });
-        assert_eq!(118, unsafe {
-            bin.header.quest_number.number_and_episode.number
-        });
+        assert_eq!(118, bin.header.quest_number());
+        assert_eq!(0, bin.header.episode());
+        assert_eq!(118, bin.header.quest_number_u16());
 
         assert_eq!(false, bin.header.is_download);
         assert_eq!(Language::Japanese, bin.header.language);
