@@ -230,7 +230,7 @@ impl QuestDat {
         Ok(QuestDat::from_uncompressed_bytes(&mut reader)?)
     }
 
-    pub fn to_uncompressed_bytes<T: WriteBytesExt>(
+    pub fn write_uncompressed_bytes<T: WriteBytesExt>(
         &self,
         writer: &mut T,
     ) -> Result<(), QuestDatError> {
@@ -255,14 +255,14 @@ impl QuestDat {
         Ok(())
     }
 
-    pub fn as_uncompressed_bytes(&self) -> Result<Box<[u8]>, QuestDatError> {
+    pub fn to_uncompressed_bytes(&self) -> Result<Box<[u8]>, QuestDatError> {
         let mut buffer = Cursor::new(Vec::<u8>::new());
-        self.to_uncompressed_bytes(&mut buffer)?;
+        self.write_uncompressed_bytes(&mut buffer)?;
         Ok(buffer.into_inner().into_boxed_slice())
     }
 
-    pub fn as_compressed_bytes(&self) -> Result<Box<[u8]>, QuestDatError> {
-        let uncompressed = self.as_uncompressed_bytes()?;
+    pub fn to_compressed_bytes(&self) -> Result<Box<[u8]>, QuestDatError> {
+        let uncompressed = self.to_uncompressed_bytes()?;
         Ok(prs_compress(uncompressed.as_ref()))
     }
 

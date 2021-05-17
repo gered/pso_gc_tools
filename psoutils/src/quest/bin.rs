@@ -204,7 +204,7 @@ impl QuestBin {
         Ok(QuestBin::from_uncompressed_bytes(&mut reader)?)
     }
 
-    pub fn to_uncompressed_bytes<T: WriteBytesExt>(
+    pub fn write_uncompressed_bytes<T: WriteBytesExt>(
         &self,
         writer: &mut T,
     ) -> Result<(), QuestBinError> {
@@ -265,14 +265,14 @@ impl QuestBin {
         Ok(())
     }
 
-    pub fn as_uncompressed_bytes(&self) -> Result<Box<[u8]>, QuestBinError> {
+    pub fn to_uncompressed_bytes(&self) -> Result<Box<[u8]>, QuestBinError> {
         let mut buffer = Cursor::new(Vec::<u8>::new());
-        self.to_uncompressed_bytes(&mut buffer)?;
+        self.write_uncompressed_bytes(&mut buffer)?;
         Ok(buffer.into_inner().into_boxed_slice())
     }
 
-    pub fn as_compressed_bytes(&self) -> Result<Box<[u8]>, QuestBinError> {
-        let uncompressed = self.as_uncompressed_bytes()?;
+    pub fn to_compressed_bytes(&self) -> Result<Box<[u8]>, QuestBinError> {
+        let uncompressed = self.to_uncompressed_bytes()?;
         Ok(prs_compress(uncompressed.as_ref()))
     }
 
