@@ -113,8 +113,7 @@ impl QuestBin {
             number: quest_number_and_episode,
         };
 
-        let mut name_bytes = [0u8; QUEST_BIN_NAME_LENGTH];
-        reader.read_exact(&mut name_bytes)?;
+        let name_bytes: [u8; QUEST_BIN_NAME_LENGTH] = reader.read_bytes()?;
         let name = match language.decode_text(name_bytes.as_unpadded_slice()) {
             Err(e) => {
                 return Err(QuestBinError::DataFormatError(format!(
@@ -125,8 +124,8 @@ impl QuestBin {
             Ok(value) => value,
         };
 
-        let mut short_description_bytes = [0u8; QUEST_BIN_SHORT_DESCRIPTION_LENGTH];
-        reader.read_exact(&mut short_description_bytes)?;
+        let short_description_bytes: [u8; QUEST_BIN_SHORT_DESCRIPTION_LENGTH] =
+            reader.read_bytes()?;
         let short_description =
             match language.decode_text(short_description_bytes.as_unpadded_slice()) {
                 Err(e) => {
@@ -138,8 +137,8 @@ impl QuestBin {
                 Ok(value) => value,
             };
 
-        let mut long_description_bytes = [0u8; QUEST_BIN_LONG_DESCRIPTION_LENGTH];
-        reader.read_exact(&mut long_description_bytes)?;
+        let long_description_bytes: [u8; QUEST_BIN_LONG_DESCRIPTION_LENGTH] =
+            reader.read_bytes()?;
         let long_description =
             match language.decode_text(long_description_bytes.as_unpadded_slice()) {
                 Err(e) => {
