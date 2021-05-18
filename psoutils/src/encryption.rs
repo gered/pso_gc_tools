@@ -1,17 +1,44 @@
-use byte_slice_cast::AsMutSliceOf;
-use thiserror::Error;
-
 const PC_STREAM_LENGTH: usize = 57;
 const GC_STREAM_LENGTH: usize = 521;
 
-#[derive(Error, Debug, PartialEq)]
-pub enum EncryptionError {
-    #[error("Error casting input data slice")]
-    InputDataCastingError(#[from] byte_slice_cast::Error),
-}
-
 pub trait Crypter {
-    fn crypt(&mut self, data: &mut [u8]) -> Result<(), EncryptionError>;
+    fn crypt_u32(&mut self, value: u32) -> u32;
+
+    fn crypt(&mut self, data: &mut [u8]) {
+        let remaining_bytes_count = data.len() % 4;
+        let dword_length = if remaining_bytes_count > 0 {
+            data.len() - remaining_bytes_count
+        } else {
+            data.len()
+        };
+
+        // encrypt all of the dword-sized data in the given buffer
+        if dword_length > 0 {
+            let mut dword: *mut u32 = data.as_mut_ptr().cast();
+            for _ in 0..(dword_length / 4) {
+                unsafe {
+                    *dword = self.crypt_u32(*dword);
+                    dword = dword.add(1);
+                }
+            }
+        }
+
+        // if there is a remaining 1-3 bytes at the end of the buffer ...
+        if remaining_bytes_count > 0 {
+            // copy those 1-3 bytes into a temporary dword buffer
+            let mut remaining_bytes = [0u8; 4];
+            remaining_bytes[0..remaining_bytes_count].copy_from_slice(&data[dword_length..]);
+
+            // encrypt the temp dword buffer
+            let dword: *mut u32 = remaining_bytes.as_mut_ptr().cast();
+            unsafe {
+                *dword = self.crypt_u32(*dword);
+            }
+
+            // copy those now-encrypted 1-3 bytes back out of the temp buffer
+            data[dword_length..].copy_from_slice(&remaining_bytes[0..remaining_bytes_count]);
+        }
+    }
 }
 
 pub struct GCCrypter {
@@ -93,14 +120,9 @@ impl GCCrypter {
 }
 
 impl Crypter for GCCrypter {
-    fn crypt(&mut self, data: &mut [u8]) -> Result<(), EncryptionError> {
-        let data = data.as_mut_slice_of::<u32>()?;
-
-        for dword in data.iter_mut() {
-            *dword ^= self.next().to_le();
-        }
-
-        Ok(())
+    fn crypt_u32(&mut self, mut value: u32) -> u32 {
+        value ^= self.next().to_le();
+        value
     }
 }
 
@@ -179,21 +201,14 @@ impl PCCrypter {
 }
 
 impl Crypter for PCCrypter {
-    fn crypt(&mut self, data: &mut [u8]) -> Result<(), EncryptionError> {
-        let data = data.as_mut_slice_of::<u32>()?;
-
-        for dword in data.iter_mut() {
-            *dword ^= self.next().to_le();
-        }
-
-        Ok(())
+    fn crypt_u32(&mut self, mut value: u32) -> u32 {
+        value ^= self.next().to_le();
+        value
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use claim::*;
-
     use super::*;
 
     #[test]
@@ -213,17 +228,17 @@ mod tests {
 
         // encrypt data
         let mut encrypter = PCCrypter::new(seed);
-        assert_ok!(encrypter.crypt(&mut buffer));
+        encrypter.crypt(&mut buffer);
         assert_eq!(buffer, encrypted);
 
         // crypting the same buffer again with the same Crypter instance won't decrypt it
         let mut temp_buffer = buffer.clone();
-        assert_ok!(encrypter.crypt(&mut temp_buffer));
+        encrypter.crypt(&mut temp_buffer);
         assert_ne!(temp_buffer, decrypted);
 
         // crypting the previous buffer with a new Crypter using the same seed, will decrypt it
         let mut decrypter = PCCrypter::new(seed);
-        assert_ok!(decrypter.crypt(&mut buffer));
+        decrypter.crypt(&mut buffer);
         assert_eq!(buffer, decrypted);
     }
 
@@ -244,64 +259,48 @@ mod tests {
 
         // encrypt data
         let mut encrypter = GCCrypter::new(seed);
-        assert_ok!(encrypter.crypt(&mut buffer));
+        encrypter.crypt(&mut buffer);
         assert_eq!(buffer, encrypted);
 
         // crypting the same buffer again with the same Crypter instance won't decrypt it
         let mut temp_buffer = buffer.clone();
-        assert_ok!(encrypter.crypt(&mut temp_buffer));
+        encrypter.crypt(&mut temp_buffer);
         assert_ne!(temp_buffer, decrypted);
 
         // crypting the previous buffer with a new Crypter using the same seed, will decrypt it
         let mut decrypter = GCCrypter::new(seed);
-        assert_ok!(decrypter.crypt(&mut buffer));
+        decrypter.crypt(&mut buffer);
         assert_eq!(buffer, decrypted);
     }
 
     #[test]
-    fn pc_crypt_non_dword_sized_data_returns_error() {
+    fn pc_crypt_non_dword_sized_data_works() {
         let mut crypter = PCCrypter::new(0x12345678);
 
-        // too small. 3 bytes, not dword-sized
-        let mut bad_data = [0x01, 0x02, 0x03];
-        assert_matches!(
-            crypter.crypt(&mut bad_data),
-            Err(EncryptionError::InputDataCastingError(_))
-        );
+        // 3 bytes
+        let mut first = [0x01, 0x02, 0x03];
+        crypter.crypt(&mut first);
+        assert_eq!(first, [0x97, 0x89, 0xeb]);
 
-        // too big. 5 bytes, also not dword-sized
-        let mut bad_data = [0x01, 0x02, 0x03, 0x04, 0x05];
-        assert_matches!(
-            crypter.crypt(&mut bad_data),
-            Err(EncryptionError::InputDataCastingError(_))
-        );
-
-        // good. dword-sized
-        let mut good_data = [0x01, 0x02, 0x03, 0x04];
-        assert_ok!(crypter.crypt(&mut good_data));
+        // 5 bytes
+        let mut second = [0x01, 0x02, 0x03, 0x04, 0x05];
+        crypter.crypt(&mut second);
+        assert_eq!(second, [0xb8, 0x62, 0x33, 0xcf, 0x6d]);
     }
 
     #[test]
     fn gc_crypt_non_dword_sized_data_returns_error() {
         let mut crypter = GCCrypter::new(0x12345678);
 
-        // too small. 3 bytes, not dword-sized
-        let mut bad_data = [0x01, 0x02, 0x03];
-        assert_matches!(
-            crypter.crypt(&mut bad_data),
-            Err(EncryptionError::InputDataCastingError(_))
-        );
+        // 3 bytes
+        let mut first = [0x01, 0x02, 0x03];
+        crypter.crypt(&mut first);
+        assert_eq!(first, [0xc3, 0xe0, 0x31]);
 
-        // too big. 5 bytes, also not dword-sized
-        let mut bad_data = [0x01, 0x02, 0x03, 0x04, 0x05];
-        assert_matches!(
-            crypter.crypt(&mut bad_data),
-            Err(EncryptionError::InputDataCastingError(_))
-        );
-
-        // good. dword-sized
-        let mut good_data = [0x01, 0x02, 0x03, 0x04];
-        assert_ok!(crypter.crypt(&mut good_data));
+        // 5 bytes
+        let mut second = [0x01, 0x02, 0x03, 0x04, 0x05];
+        crypter.crypt(&mut second);
+        assert_eq!(second, [0x4a, 0x2f, 0xcd, 0xdf, 0xbc]);
     }
 
     #[test]
@@ -323,19 +322,19 @@ mod tests {
         let mut encrypter = PCCrypter::new(seed);
 
         let mut first_buffer = first_decrypted.clone();
-        assert_ok!(encrypter.crypt(&mut first_buffer));
+        encrypter.crypt(&mut first_buffer);
         assert_eq!(first_encrypted, first_buffer);
 
         let mut second_buffer = second_decrypted.clone();
-        assert_ok!(encrypter.crypt(&mut second_buffer));
+        encrypter.crypt(&mut second_buffer);
         assert_eq!(second_encrypted, second_buffer);
 
         let mut decrypter = PCCrypter::new(seed);
 
-        assert_ok!(decrypter.crypt(&mut first_buffer));
+        decrypter.crypt(&mut first_buffer);
         assert_eq!(first_decrypted, first_buffer);
 
-        assert_ok!(decrypter.crypt(&mut second_buffer));
+        decrypter.crypt(&mut second_buffer);
         assert_eq!(second_decrypted, second_buffer);
     }
 
@@ -358,19 +357,19 @@ mod tests {
         let mut encrypter = GCCrypter::new(seed);
 
         let mut first_buffer = first_decrypted.clone();
-        assert_ok!(encrypter.crypt(&mut first_buffer));
+        encrypter.crypt(&mut first_buffer);
         assert_eq!(first_encrypted, first_buffer);
 
         let mut second_buffer = second_decrypted.clone();
-        assert_ok!(encrypter.crypt(&mut second_buffer));
+        encrypter.crypt(&mut second_buffer);
         assert_eq!(second_encrypted, second_buffer);
 
         let mut decrypter = GCCrypter::new(seed);
 
-        assert_ok!(decrypter.crypt(&mut first_buffer));
+        decrypter.crypt(&mut first_buffer);
         assert_eq!(first_decrypted, first_buffer);
 
-        assert_ok!(decrypter.crypt(&mut second_buffer));
+        decrypter.crypt(&mut second_buffer);
         assert_eq!(second_decrypted, second_buffer);
     }
 
@@ -496,11 +495,11 @@ mod tests {
         let mut buffer = decrypted.clone();
 
         let mut encrypter = PCCrypter::new(seed);
-        assert_ok!(encrypter.crypt(&mut buffer));
+        encrypter.crypt(&mut buffer);
         assert_eq!(encrypted, buffer);
 
         let mut decrypter = PCCrypter::new(seed);
-        assert_ok!(decrypter.crypt(&mut buffer));
+        decrypter.crypt(&mut buffer);
         assert_eq!(decrypted, buffer);
     }
 
@@ -626,11 +625,11 @@ mod tests {
         let mut buffer = decrypted.clone();
 
         let mut encrypter = GCCrypter::new(seed);
-        assert_ok!(encrypter.crypt(&mut buffer));
+        encrypter.crypt(&mut buffer);
         assert_eq!(encrypted, buffer);
 
         let mut decrypter = GCCrypter::new(seed);
-        assert_ok!(decrypter.crypt(&mut buffer));
+        decrypter.crypt(&mut buffer);
         assert_eq!(decrypted, buffer);
     }
 }
