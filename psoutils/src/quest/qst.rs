@@ -534,10 +534,10 @@ mod tests {
 
     #[test]
     pub fn read_quest_58_qst_from_file() -> Result<(), QuestQstError> {
-        let qst = QuestQst::from_file(Path::new("assets/test/q058-ret-gc.online.qst"))?;
+        let qst = QuestQst::from_file(Path::new("test-assets/q058-ret-gc.online.qst"))?;
         validate_quest_58_qst(&qst, 1438, 15097, true)?;
 
-        let qst = QuestQst::from_file(Path::new("assets/test/q058-ret-gc.offline.qst"))?;
+        let qst = QuestQst::from_file(Path::new("test-assets/q058-ret-gc.offline.qst"))?;
         validate_quest_58_qst(&qst, 1571, 15105, false)?;
 
         Ok(())
@@ -545,10 +545,10 @@ mod tests {
 
     #[test]
     pub fn read_quest_118_qst_from_file() -> Result<(), QuestQstError> {
-        let qst = QuestQst::from_file(Path::new("assets/test/q118-vr-gc.online.qst"))?;
+        let qst = QuestQst::from_file(Path::new("test-assets/q118-vr-gc.online.qst"))?;
         validate_quest_118_qst(&qst, 14208, 11802, true)?;
 
-        let qst = QuestQst::from_file(Path::new("assets/test/q118-vr-gc.offline.qst"))?;
+        let qst = QuestQst::from_file(Path::new("test-assets/q118-vr-gc.offline.qst"))?;
         validate_quest_118_qst(&qst, 14801, 11810, false)?;
 
         Ok(())
@@ -556,8 +556,8 @@ mod tests {
 
     #[test]
     pub fn create_qst_from_quest_58_bindat_files() -> Result<(), QuestQstError> {
-        let mut bin = QuestBin::from_compressed_file(Path::new("assets/test/q058-ret-gc.bin"))?;
-        let dat = QuestDat::from_compressed_file(Path::new("assets/test/q058-ret-gc.dat"))?;
+        let mut bin = QuestBin::from_compressed_file(Path::new("test-assets/q058-ret-gc.bin"))?;
+        let dat = QuestDat::from_compressed_file(Path::new("test-assets/q058-ret-gc.dat"))?;
 
         let qst = QuestQst::from_bindat(&bin, &dat)?;
         validate_quest_58_qst(&qst, 1565, 15507, true)?;
@@ -571,8 +571,8 @@ mod tests {
 
     #[test]
     pub fn create_qst_from_quest_118_bindat_files() -> Result<(), QuestQstError> {
-        let mut bin = QuestBin::from_compressed_file(Path::new("assets/test/q118-vr-gc.bin"))?;
-        let dat = QuestDat::from_compressed_file(Path::new("assets/test/q118-vr-gc.dat"))?;
+        let mut bin = QuestBin::from_compressed_file(Path::new("test-assets/q118-vr-gc.bin"))?;
+        let dat = QuestDat::from_compressed_file(Path::new("test-assets/q118-vr-gc.dat"))?;
 
         let qst = QuestQst::from_bindat(&bin, &dat)?;
         validate_quest_118_qst(&qst, 14794, 12277, true)?;

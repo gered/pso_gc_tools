@@ -517,7 +517,7 @@ pub mod tests {
 
     #[test]
     pub fn read_compressed_quest_58_dat() -> Result<(), QuestDatError> {
-        let path = Path::new("assets/test/q058-ret-gc.dat");
+        let path = Path::new("test-assets/q058-ret-gc.dat");
         let dat = QuestDat::from_compressed_file(&path)?;
         validate_quest_58_dat(&dat);
         Ok(())
@@ -525,7 +525,7 @@ pub mod tests {
 
     #[test]
     pub fn read_uncompressed_quest_58_dat() -> Result<(), QuestDatError> {
-        let path = Path::new("assets/test/q058-ret-gc.uncompressed.dat");
+        let path = Path::new("test-assets/q058-ret-gc.uncompressed.dat");
         let dat = QuestDat::from_uncompressed_file(&path)?;
         validate_quest_58_dat(&dat);
         Ok(())
@@ -533,7 +533,7 @@ pub mod tests {
 
     #[test]
     pub fn read_compressed_quest_118_dat() -> Result<(), QuestDatError> {
-        let path = Path::new("assets/test/q118-vr-gc.dat");
+        let path = Path::new("test-assets/q118-vr-gc.dat");
         let dat = QuestDat::from_compressed_file(&path)?;
         validate_quest_118_dat(&dat);
         Ok(())
@@ -541,7 +541,7 @@ pub mod tests {
 
     #[test]
     pub fn read_uncompressed_quest_118_dat() -> Result<(), QuestDatError> {
-        let path = Path::new("assets/test/q118-vr-gc.uncompressed.dat");
+        let path = Path::new("test-assets/q118-vr-gc.uncompressed.dat");
         let dat = QuestDat::from_uncompressed_file(&path)?;
         validate_quest_118_dat(&dat);
         Ok(())

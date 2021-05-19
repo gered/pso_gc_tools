@@ -334,7 +334,7 @@ pub mod tests {
 
     #[test]
     pub fn read_compressed_quest_58_bin() -> Result<(), QuestBinError> {
-        let path = Path::new("assets/test/q058-ret-gc.bin");
+        let path = Path::new("test-assets/q058-ret-gc.bin");
         let bin = QuestBin::from_compressed_file(&path)?;
         validate_quest_58_bin(&bin);
         Ok(())
@@ -342,7 +342,7 @@ pub mod tests {
 
     #[test]
     pub fn read_uncompressed_quest_58_bin() -> Result<(), QuestBinError> {
-        let path = Path::new("assets/test/q058-ret-gc.uncompressed.bin");
+        let path = Path::new("test-assets/q058-ret-gc.uncompressed.bin");
         let bin = QuestBin::from_uncompressed_file(&path)?;
         validate_quest_58_bin(&bin);
         Ok(())
@@ -350,7 +350,7 @@ pub mod tests {
 
     #[test]
     pub fn read_compressed_quest_118_bin() -> Result<(), QuestBinError> {
-        let path = Path::new("assets/test/q118-vr-gc.bin");
+        let path = Path::new("test-assets/q118-vr-gc.bin");
         let bin = QuestBin::from_compressed_file(&path)?;
         validate_quest_118_bin(&bin);
         Ok(())
@@ -358,7 +358,7 @@ pub mod tests {
 
     #[test]
     pub fn read_uncompressed_quest_118_bin() -> Result<(), QuestBinError> {
-        let path = Path::new("assets/test/q118-vr-gc.uncompressed.bin");
+        let path = Path::new("test-assets/q118-vr-gc.uncompressed.bin");
         let bin = QuestBin::from_uncompressed_file(&path)?;
         validate_quest_118_bin(&bin);
         Ok(())
