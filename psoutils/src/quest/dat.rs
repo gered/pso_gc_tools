@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 use std::fs::File;
-use std::io::{BufReader, Cursor, Read};
+use std::io::{BufReader, Cursor, Read, Write};
 use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -255,6 +255,19 @@ impl QuestDat {
         Ok(())
     }
 
+    pub fn to_compressed_file(&self, path: &Path) -> Result<(), QuestDatError> {
+        let compressed_bytes = self.to_compressed_bytes()?;
+        let mut file = File::create(path)?;
+        file.write_all(compressed_bytes.as_ref())?;
+        Ok(())
+    }
+
+    pub fn to_uncompressed_file(&self, path: &Path) -> Result<(), QuestDatError> {
+        let mut file = File::create(path)?;
+        self.write_uncompressed_bytes(&mut file)?;
+        Ok(())
+    }
+
     pub fn to_uncompressed_bytes(&self) -> Result<Box<[u8]>, QuestDatError> {
         let mut buffer = Cursor::new(Vec::<u8>::new());
         self.write_uncompressed_bytes(&mut buffer)?;
@@ -276,6 +289,8 @@ impl QuestDat {
 
 #[cfg(test)]
 pub mod tests {
+    use tempfile::TempDir;
+
     use super::*;
 
     pub fn validate_quest_58_dat(dat: &QuestDat) {
@@ -524,9 +539,33 @@ pub mod tests {
     }
 
     #[test]
+    pub fn write_compressed_quest_58_dat() -> Result<(), QuestDatError> {
+        let data = include_bytes!("../../test-assets/q058-ret-gc.dat");
+        let dat = QuestDat::from_compressed_bytes(data)?;
+        let tmp_dir = TempDir::new()?;
+        let dat_path = tmp_dir.path().join("quest58.dat");
+        dat.to_compressed_file(&dat_path)?;
+        let dat = QuestDat::from_compressed_file(&dat_path)?;
+        validate_quest_58_dat(&dat);
+        Ok(())
+    }
+
+    #[test]
     pub fn read_uncompressed_quest_58_dat() -> Result<(), QuestDatError> {
         let path = Path::new("test-assets/q058-ret-gc.uncompressed.dat");
         let dat = QuestDat::from_uncompressed_file(&path)?;
+        validate_quest_58_dat(&dat);
+        Ok(())
+    }
+
+    #[test]
+    pub fn write_uncompressed_quest_58_dat() -> Result<(), QuestDatError> {
+        let data = include_bytes!("../../test-assets/q058-ret-gc.dat");
+        let dat = QuestDat::from_compressed_bytes(data)?;
+        let tmp_dir = TempDir::new()?;
+        let dat_path = tmp_dir.path().join("quest58.dat");
+        dat.to_uncompressed_file(&dat_path)?;
+        let dat = QuestDat::from_uncompressed_file(&dat_path)?;
         validate_quest_58_dat(&dat);
         Ok(())
     }
@@ -540,9 +579,33 @@ pub mod tests {
     }
 
     #[test]
+    pub fn write_compressed_quest_118_dat() -> Result<(), QuestDatError> {
+        let data = include_bytes!("../../test-assets/q118-vr-gc.dat");
+        let dat = QuestDat::from_compressed_bytes(data)?;
+        let tmp_dir = TempDir::new()?;
+        let dat_path = tmp_dir.path().join("quest118.dat");
+        dat.to_compressed_file(&dat_path)?;
+        let dat = QuestDat::from_compressed_file(&dat_path)?;
+        validate_quest_118_dat(&dat);
+        Ok(())
+    }
+
+    #[test]
     pub fn read_uncompressed_quest_118_dat() -> Result<(), QuestDatError> {
         let path = Path::new("test-assets/q118-vr-gc.uncompressed.dat");
         let dat = QuestDat::from_uncompressed_file(&path)?;
+        validate_quest_118_dat(&dat);
+        Ok(())
+    }
+
+    #[test]
+    pub fn write_uncompressed_quest_118_dat() -> Result<(), QuestDatError> {
+        let data = include_bytes!("../../test-assets/q118-vr-gc.dat");
+        let dat = QuestDat::from_compressed_bytes(data)?;
+        let tmp_dir = TempDir::new()?;
+        let dat_path = tmp_dir.path().join("quest118.dat");
+        dat.to_uncompressed_file(&dat_path)?;
+        let dat = QuestDat::from_uncompressed_file(&dat_path)?;
         validate_quest_118_dat(&dat);
         Ok(())
     }

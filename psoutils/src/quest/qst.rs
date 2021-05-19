@@ -372,6 +372,12 @@ impl QuestQst {
         Ok(())
     }
 
+    pub fn to_file(&self, path: &Path) -> Result<(), QuestQstError> {
+        let mut file = File::create(path)?;
+        self.write_bytes(&mut file)?;
+        Ok(())
+    }
+
     pub fn to_bytes(&self) -> Result<Box<[u8]>, QuestQstError> {
         let mut buffer = Cursor::new(Vec::<u8>::new());
         self.write_bytes(&mut buffer)?;
@@ -405,6 +411,8 @@ impl QuestQst {
 
 #[cfg(test)]
 mod tests {
+    use tempfile::TempDir;
+
     use crate::quest::bin::tests::{validate_quest_118_bin, validate_quest_58_bin};
     use crate::quest::dat::tests::{validate_quest_118_dat, validate_quest_58_dat};
 
@@ -544,11 +552,59 @@ mod tests {
     }
 
     #[test]
+    pub fn write_quest_58_qst_to_file() -> Result<(), QuestQstError> {
+        let online_data = include_bytes!("../../test-assets/q058-ret-gc.online.qst");
+        let offline_data = include_bytes!("../../test-assets/q058-ret-gc.offline.qst");
+
+        let tmp_dir = TempDir::new()?;
+
+        let mut reader = Cursor::new(online_data);
+        let qst = QuestQst::from_bytes(&mut reader)?;
+        let qst_path = tmp_dir.path().join("quest58.online.qst");
+        qst.to_file(&qst_path)?;
+        let qst = QuestQst::from_file(&qst_path)?;
+        validate_quest_58_qst(&qst, 1438, 15097, true)?;
+
+        let mut reader = Cursor::new(offline_data);
+        let qst = QuestQst::from_bytes(&mut reader)?;
+        let qst_path = tmp_dir.path().join("quest58.offline.qst");
+        qst.to_file(&qst_path)?;
+        let qst = QuestQst::from_file(&qst_path)?;
+        validate_quest_58_qst(&qst, 1571, 15105, false)?;
+
+        Ok(())
+    }
+
+    #[test]
     pub fn read_quest_118_qst_from_file() -> Result<(), QuestQstError> {
         let qst = QuestQst::from_file(Path::new("test-assets/q118-vr-gc.online.qst"))?;
         validate_quest_118_qst(&qst, 14208, 11802, true)?;
 
         let qst = QuestQst::from_file(Path::new("test-assets/q118-vr-gc.offline.qst"))?;
+        validate_quest_118_qst(&qst, 14801, 11810, false)?;
+
+        Ok(())
+    }
+
+    #[test]
+    pub fn write_quest_118_qst_to_file() -> Result<(), QuestQstError> {
+        let online_data = include_bytes!("../../test-assets/q118-vr-gc.online.qst");
+        let offline_data = include_bytes!("../../test-assets/q118-vr-gc.offline.qst");
+
+        let tmp_dir = TempDir::new()?;
+
+        let mut reader = Cursor::new(online_data);
+        let qst = QuestQst::from_bytes(&mut reader)?;
+        let qst_path = tmp_dir.path().join("quest118.online.qst");
+        qst.to_file(&qst_path)?;
+        let qst = QuestQst::from_file(&qst_path)?;
+        validate_quest_118_qst(&qst, 14208, 11802, true)?;
+
+        let mut reader = Cursor::new(offline_data);
+        let qst = QuestQst::from_bytes(&mut reader)?;
+        let qst_path = tmp_dir.path().join("quest118.offline.qst");
+        qst.to_file(&qst_path)?;
+        let qst = QuestQst::from_file(&qst_path)?;
         validate_quest_118_qst(&qst, 14801, 11810, false)?;
 
         Ok(())

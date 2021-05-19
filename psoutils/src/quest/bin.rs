@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{BufReader, Cursor, Read};
+use std::io::{BufReader, Cursor, Read, Write};
 use std::path::Path;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -264,6 +264,19 @@ impl QuestBin {
         Ok(())
     }
 
+    pub fn to_compressed_file(&self, path: &Path) -> Result<(), QuestBinError> {
+        let compressed_bytes = self.to_compressed_bytes()?;
+        let mut file = File::create(path)?;
+        file.write_all(compressed_bytes.as_ref())?;
+        Ok(())
+    }
+
+    pub fn to_uncompressed_file(&self, path: &Path) -> Result<(), QuestBinError> {
+        let mut file = File::create(path)?;
+        self.write_uncompressed_bytes(&mut file)?;
+        Ok(())
+    }
+
     pub fn to_uncompressed_bytes(&self) -> Result<Box<[u8]>, QuestBinError> {
         let mut buffer = Cursor::new(Vec::<u8>::new());
         self.write_uncompressed_bytes(&mut buffer)?;
@@ -284,6 +297,8 @@ impl QuestBin {
 
 #[cfg(test)]
 pub mod tests {
+    use tempfile::TempDir;
+
     use super::*;
 
     pub fn validate_quest_58_bin(bin: &QuestBin) {
@@ -341,9 +356,33 @@ pub mod tests {
     }
 
     #[test]
+    pub fn write_compressed_quest_58_bin() -> Result<(), QuestBinError> {
+        let data = include_bytes!("../../test-assets/q058-ret-gc.bin");
+        let bin = QuestBin::from_compressed_bytes(data)?;
+        let tmp_dir = TempDir::new()?;
+        let bin_path = tmp_dir.path().join("quest58.bin");
+        bin.to_compressed_file(&bin_path)?;
+        let bin = QuestBin::from_compressed_file(&bin_path)?;
+        validate_quest_58_bin(&bin);
+        Ok(())
+    }
+
+    #[test]
     pub fn read_uncompressed_quest_58_bin() -> Result<(), QuestBinError> {
         let path = Path::new("test-assets/q058-ret-gc.uncompressed.bin");
         let bin = QuestBin::from_uncompressed_file(&path)?;
+        validate_quest_58_bin(&bin);
+        Ok(())
+    }
+
+    #[test]
+    pub fn write_uncompressed_quest_58_bin() -> Result<(), QuestBinError> {
+        let data = include_bytes!("../../test-assets/q058-ret-gc.bin");
+        let bin = QuestBin::from_compressed_bytes(data)?;
+        let tmp_dir = TempDir::new()?;
+        let bin_path = tmp_dir.path().join("quest58.bin");
+        bin.to_uncompressed_file(&bin_path)?;
+        let bin = QuestBin::from_uncompressed_file(&bin_path)?;
         validate_quest_58_bin(&bin);
         Ok(())
     }
@@ -357,9 +396,33 @@ pub mod tests {
     }
 
     #[test]
+    pub fn write_compressed_quest_118_bin() -> Result<(), QuestBinError> {
+        let data = include_bytes!("../../test-assets/q118-vr-gc.bin");
+        let bin = QuestBin::from_compressed_bytes(data)?;
+        let tmp_dir = TempDir::new()?;
+        let bin_path = tmp_dir.path().join("quest118.bin");
+        bin.to_compressed_file(&bin_path)?;
+        let bin = QuestBin::from_compressed_file(&bin_path)?;
+        validate_quest_118_bin(&bin);
+        Ok(())
+    }
+
+    #[test]
     pub fn read_uncompressed_quest_118_bin() -> Result<(), QuestBinError> {
         let path = Path::new("test-assets/q118-vr-gc.uncompressed.bin");
         let bin = QuestBin::from_uncompressed_file(&path)?;
+        validate_quest_118_bin(&bin);
+        Ok(())
+    }
+
+    #[test]
+    pub fn write_uncompressed_quest_118_bin() -> Result<(), QuestBinError> {
+        let data = include_bytes!("../../test-assets/q118-vr-gc.bin");
+        let bin = QuestBin::from_compressed_bytes(data)?;
+        let tmp_dir = TempDir::new()?;
+        let bin_path = tmp_dir.path().join("quest118.bin");
+        bin.to_uncompressed_file(&bin_path)?;
+        let bin = QuestBin::from_uncompressed_file(&bin_path)?;
         validate_quest_118_bin(&bin);
         Ok(())
     }
