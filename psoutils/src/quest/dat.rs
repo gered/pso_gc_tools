@@ -275,7 +275,7 @@ impl QuestDat {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
     pub fn validate_quest_58_dat(dat: &QuestDat) {

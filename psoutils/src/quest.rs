@@ -7,6 +7,7 @@ use crate::quest::dat::{QuestDat, QuestDatError};
 
 pub mod bin;
 pub mod dat;
+pub mod qst;
 
 #[derive(Error, Debug)]
 pub enum QuestError {
