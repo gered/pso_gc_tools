@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::io::{BufReader, Cursor, Read, Write};
 use std::path::Path;
@@ -8,7 +9,6 @@ use thiserror::Error;
 use crate::bytes::*;
 use crate::compression::{prs_compress, prs_decompress, PrsCompressionError};
 use crate::text::Language;
-use std::fmt::{Debug, Formatter};
 
 pub const QUEST_BIN_NAME_LENGTH: usize = 32;
 pub const QUEST_BIN_SHORT_DESCRIPTION_LENGTH: usize = 128;
@@ -314,11 +314,11 @@ impl QuestBin {
 #[cfg(test)]
 pub mod tests {
     use claim::*;
+    use rand::prelude::StdRng;
+    use rand::{Fill, SeedableRng};
     use tempfile::TempDir;
 
     use super::*;
-    use rand::prelude::StdRng;
-    use rand::{Fill, SeedableRng};
 
     pub fn validate_quest_58_bin(bin: &QuestBin) {
         assert_eq!(2000, bin.object_code.len());

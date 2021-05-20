@@ -276,8 +276,9 @@ impl QuestDataPacket {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use claim::*;
+
+    use super::*;
 
     #[test]
     pub fn create_quest_header_packet_from_bytes() -> Result<(), PacketError> {
