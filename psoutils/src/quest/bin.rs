@@ -230,7 +230,7 @@ impl QuestBin {
             }
             Ok(value) => value,
         };
-        writer.write_all(&name_bytes.to_fixed_length(QUEST_BIN_NAME_LENGTH))?;
+        writer.write_all(&name_bytes.to_array::<QUEST_BIN_NAME_LENGTH>())?;
 
         let short_description_bytes = match language.encode_text(&self.header.short_description) {
             Err(e) => {
@@ -241,9 +241,8 @@ impl QuestBin {
             }
             Ok(value) => value,
         };
-        writer.write_all(
-            &short_description_bytes.to_fixed_length(QUEST_BIN_SHORT_DESCRIPTION_LENGTH),
-        )?;
+        writer
+            .write_all(&short_description_bytes.to_array::<QUEST_BIN_SHORT_DESCRIPTION_LENGTH>())?;
 
         let long_description_bytes = match language.encode_text(&self.header.long_description) {
             Err(e) => {
@@ -254,9 +253,8 @@ impl QuestBin {
             }
             Ok(value) => value,
         };
-        writer.write_all(
-            &long_description_bytes.to_fixed_length(QUEST_BIN_LONG_DESCRIPTION_LENGTH),
-        )?;
+        writer
+            .write_all(&long_description_bytes.to_array::<QUEST_BIN_LONG_DESCRIPTION_LENGTH>())?;
 
         writer.write_all(self.object_code.as_ref())?;
         writer.write_all(self.function_offset_table.as_ref())?;

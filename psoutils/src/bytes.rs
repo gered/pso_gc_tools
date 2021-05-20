@@ -1,9 +1,9 @@
-use byteorder::ReadBytesExt;
 use std::io::Error;
+
+use byteorder::ReadBytesExt;
 
 pub trait FixedLengthByteArrays {
     fn as_unpadded_slice(&self) -> &[u8];
-    fn to_fixed_length(&self, length: usize) -> Vec<u8>;
     fn to_array<const N: usize>(&self) -> [u8; N];
 }
 
@@ -11,14 +11,6 @@ impl<T: AsRef<[u8]> + ?Sized> FixedLengthByteArrays for T {
     fn as_unpadded_slice(&self) -> &[u8] {
         let end = self.as_ref().iter().take_while(|&b| *b != 0).count();
         &self.as_ref()[0..end]
-    }
-
-    fn to_fixed_length(&self, length: usize) -> Vec<u8> {
-        let mut result = self.as_ref().to_vec();
-        if result.len() != length {
-            result.resize(length, 0u8);
-        }
-        result
     }
 
     fn to_array<const N: usize>(&self) -> [u8; N] {
@@ -83,7 +75,7 @@ mod tests {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00,
             ],
-            bytes.to_fixed_length(32)
+            bytes.to_array::<32>()
         );
 
         let bytes: &[u8] = &[
@@ -93,10 +85,10 @@ mod tests {
             vec![
                 0x54, 0x68, 0x65, 0x20, 0x45, 0x61, 0x73, 0x74, 0x20, 0x54, 0x6f, 0x77, 0x65, 0x72,
             ],
-            bytes.to_fixed_length(14)
+            bytes.to_array::<14>()
         );
 
         let bytes: &[u8] = &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
-        assert_eq!(vec![0x01, 0x02, 0x03, 0x04], bytes.to_fixed_length(4));
+        assert_eq!(vec![0x01, 0x02, 0x03, 0x04], bytes.to_array::<4>());
     }
 }
