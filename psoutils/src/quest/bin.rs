@@ -6,7 +6,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
 
 use crate::bytes::*;
-use crate::compression::{prs_compress, prs_decompress};
+use crate::compression::{prs_compress, prs_decompress, PrsCompressionError};
 use crate::text::Language;
 
 pub const QUEST_BIN_NAME_LENGTH: usize = 32;
@@ -22,6 +22,9 @@ pub const QUEST_BIN_HEADER_SIZE: usize = 20
 pub enum QuestBinError {
     #[error("I/O error while processing quest bin")]
     IoError(#[from] std::io::Error),
+
+    #[error("PRS compression failed")]
+    PrsCompressionError(#[from] PrsCompressionError),
 
     #[error("Bad quest bin data format: {0}")]
     DataFormatError(String),
@@ -75,7 +78,7 @@ pub struct QuestBin {
 
 impl QuestBin {
     pub fn from_compressed_bytes(bytes: &[u8]) -> Result<QuestBin, QuestBinError> {
-        let decompressed = prs_decompress(&bytes);
+        let decompressed = prs_decompress(&bytes)?;
         let mut reader = Cursor::new(decompressed);
         Ok(QuestBin::from_uncompressed_bytes(&mut reader)?)
     }
@@ -283,7 +286,7 @@ impl QuestBin {
 
     pub fn to_compressed_bytes(&self) -> Result<Box<[u8]>, QuestBinError> {
         let uncompressed = self.to_uncompressed_bytes()?;
-        Ok(prs_compress(uncompressed.as_ref()))
+        Ok(prs_compress(uncompressed.as_ref())?)
     }
 
     pub fn calculate_size(&self) -> usize {

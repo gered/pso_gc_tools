@@ -6,7 +6,7 @@ use std::path::Path;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
 
-use crate::compression::{prs_compress, prs_decompress};
+use crate::compression::{prs_compress, prs_decompress, PrsCompressionError};
 
 pub const QUEST_DAT_TABLE_HEADER_SIZE: usize = 16;
 
@@ -57,6 +57,9 @@ pub const QUEST_DAT_AREAS: [[&str; 18]; 2] = [
 pub enum QuestDatError {
     #[error("I/O error while processing quest dat")]
     IoError(#[from] std::io::Error),
+
+    #[error("PRS compression failed")]
+    PrsCompressionError(#[from] PrsCompressionError),
 
     #[error("Bad quest dat data format: {0}")]
     DataFormatError(String),
@@ -163,7 +166,7 @@ pub struct QuestDat {
 
 impl QuestDat {
     pub fn from_compressed_bytes(bytes: &[u8]) -> Result<QuestDat, QuestDatError> {
-        let decompressed = prs_decompress(&bytes);
+        let decompressed = prs_decompress(&bytes)?;
         let mut reader = Cursor::new(decompressed);
         Ok(QuestDat::from_uncompressed_bytes(&mut reader)?)
     }
@@ -276,7 +279,7 @@ impl QuestDat {
 
     pub fn to_compressed_bytes(&self) -> Result<Box<[u8]>, QuestDatError> {
         let uncompressed = self.to_uncompressed_bytes()?;
-        Ok(prs_compress(uncompressed.as_ref()))
+        Ok(prs_compress(uncompressed.as_ref())?)
     }
 
     pub fn calculate_size(&self) -> usize {
