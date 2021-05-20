@@ -3,11 +3,11 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum LanguageError {
-    #[error("Error(s) encountered encoding text from {0} to {1}")]
-    EncodeError(String, String),
+    #[error("Error encoding string to {0} bytes")]
+    EncodeError(String),
 
-    #[error("Error(s) encountered decoding text from {0} to {1}")]
-    DecodeError(String, String),
+    #[error("Error decoding as {0} bytes")]
+    DecodeError(String),
 
     #[error("The number {0} does not correspond to any supported language")]
     InvalidLanguageValue(u8),
@@ -50,10 +50,7 @@ impl Language {
         let encoding = self.get_encoding();
         let (cow, encoding_used, had_errors) = encoding.decode(bytes);
         if had_errors {
-            Err(LanguageError::DecodeError(
-                encoding.name().to_string(),
-                encoding_used.name().to_string(),
-            ))
+            Err(LanguageError::DecodeError(encoding_used.name().to_string()))
         } else {
             Ok(cow.to_string())
         }
@@ -63,10 +60,7 @@ impl Language {
         let encoding = self.get_encoding();
         let (cow, encoding_used, had_errors) = encoding.encode(s);
         if had_errors {
-            Err(LanguageError::EncodeError(
-                encoding.name().to_string(),
-                encoding_used.name().to_string(),
-            ))
+            Err(LanguageError::EncodeError(encoding_used.name().to_string()))
         } else {
             Ok(cow.to_vec())
         }
@@ -112,7 +106,7 @@ mod tests {
 
         assert_matches!(
             Language::English.encode_text("東天の塔"),
-            Err(LanguageError::EncodeError(_, _))
+            Err(LanguageError::EncodeError(_))
         );
     }
 }
