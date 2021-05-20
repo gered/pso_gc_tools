@@ -1,7 +1,3 @@
-use std::io::Error;
-
-use byteorder::ReadBytesExt;
-
 pub trait FixedLengthByteArrays {
     fn as_unpadded_slice(&self) -> &[u8];
     fn to_array<const N: usize>(&self) -> [u8; N];
@@ -29,8 +25,8 @@ pub trait ReadFixedLengthByteArray {
     fn read_bytes<const N: usize>(&mut self) -> Result<[u8; N], std::io::Error>;
 }
 
-impl<T: ReadBytesExt> ReadFixedLengthByteArray for T {
-    fn read_bytes<const N: usize>(&mut self) -> Result<[u8; N], Error> {
+impl<T: std::io::Read> ReadFixedLengthByteArray for T {
+    fn read_bytes<const N: usize>(&mut self) -> Result<[u8; N], std::io::Error> {
         assert_ne!(N, 0);
         let mut array = [0u8; N];
         self.read_exact(&mut array)?;
