@@ -632,7 +632,7 @@ pub mod tests {
     }
 
     #[test]
-    pub fn bad_input_data_results_in_errors() -> Result<(), QuestDatError> {
+    pub fn error_on_load_from_zero_bytes() {
         let mut data: &[u8] = &[];
         assert_matches!(
             QuestDat::from_uncompressed_bytes(&mut data),
@@ -642,7 +642,10 @@ pub mod tests {
             QuestDat::from_compressed_bytes(&mut data),
             Err(QuestDatError::PrsCompressionError(..))
         );
+    }
 
+    #[test]
+    pub fn error_on_load_from_garbage_bytes() {
         let mut data: &[u8] = b"This is definitely not a quest";
         assert_matches!(
             QuestDat::from_uncompressed_bytes(&mut data),
@@ -652,8 +655,11 @@ pub mod tests {
             QuestDat::from_compressed_bytes(&mut data),
             Err(QuestDatError::PrsCompressionError(..))
         );
+    }
 
-        // dat table header with a table_size issue
+    #[test]
+    pub fn errpr_on_table_header_with_bad_table_size() {
+        // dat table header with a table_size issue (table_size != table_body_size + 16)
         let mut header: &[u8] = &[
             0x01, 0x00, 0x00, 0x00, // table_type
             0xD3, 0x08, 0x00, 0x00, // table_size
@@ -664,7 +670,10 @@ pub mod tests {
             QuestDat::from_uncompressed_bytes(&mut header),
             Err(QuestDatError::DataFormatError(..))
         );
+    }
 
+    #[test]
+    pub fn error_on_table_header_with_bad_table_type() {
         // dat table header with a table_type issue
         let mut header: &[u8] = &[
             0x11, 0x00, 0x00, 0x00, // table_type
@@ -676,7 +685,10 @@ pub mod tests {
             QuestDat::from_uncompressed_bytes(&mut header),
             Err(QuestDatError::DataFormatError(..))
         );
+    }
 
+    #[test]
+    pub fn error_on_table_with_body_data_that_is_too_small() {
         // a valid dat table header ...
         let header: &[u8] = &[
             0x01, 0x00, 0x00, 0x00, // table_type
@@ -693,16 +705,5 @@ pub mod tests {
             QuestDat::from_uncompressed_bytes(&mut data.as_slice()),
             Err(QuestDatError::IoError(..))
         );
-
-        // totally random data which should be interpreted as an invalid table header
-        let mut data = vec![0u8; 1024];
-        let mut rng = StdRng::seed_from_u64(15785357);
-        data.try_fill(&mut rng).unwrap();
-        assert_matches!(
-            QuestDat::from_uncompressed_bytes(&mut data.as_slice()),
-            Err(QuestDatError::DataFormatError(..))
-        );
-
-        Ok(())
     }
 }
