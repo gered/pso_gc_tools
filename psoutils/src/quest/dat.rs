@@ -118,11 +118,13 @@ impl From<&QuestDatTableType> for u32 {
     }
 }
 
+#[derive(Debug)]
 pub struct QuestDatTableHeader {
     pub table_type: QuestDatTableType,
     pub area: u32,
 }
 
+#[derive(Debug)]
 pub struct QuestDatTable {
     pub header: QuestDatTableHeader,
     pub bytes: Box<[u8]>,
@@ -160,6 +162,7 @@ impl QuestDatTable {
     }
 }
 
+#[derive(Debug)]
 pub struct QuestDat {
     pub tables: Box<[QuestDatTable]>,
 }
@@ -214,6 +217,18 @@ impl QuestDat {
 
             index += 1;
         }
+
+        // i wrote this check thinking that an empty .dat file is the most useless thing ever,
+        // but maybe it is possible to exist in a legitimate quest for a totally script-driven
+        // "quest" ... e.g. some sort of "utility quest" that exists just for the purpose of letting
+        // a user interact with the script stored in the .bin? dunno really, but i guess i might
+        // as well disable this check ...
+        //
+        //if tables.len() == 0 {
+        //    return Err(QuestDatError::DataFormatError(String::from(
+        //        "no tables found, probably not a .dat file?",
+        //    )));
+        //}
 
         Ok(QuestDat {
             tables: tables.into_boxed_slice(),
@@ -292,6 +307,9 @@ impl QuestDat {
 
 #[cfg(test)]
 pub mod tests {
+    use claim::*;
+    use rand::prelude::StdRng;
+    use rand::{Fill, SeedableRng};
     use tempfile::TempDir;
 
     use super::*;
@@ -610,6 +628,81 @@ pub mod tests {
         dat.to_uncompressed_file(&dat_path)?;
         let dat = QuestDat::from_uncompressed_file(&dat_path)?;
         validate_quest_118_dat(&dat);
+        Ok(())
+    }
+
+    #[test]
+    pub fn bad_input_data_results_in_errors() -> Result<(), QuestDatError> {
+        let mut data: &[u8] = &[];
+        assert_matches!(
+            QuestDat::from_uncompressed_bytes(&mut data),
+            Err(QuestDatError::IoError(..))
+        );
+        assert_matches!(
+            QuestDat::from_compressed_bytes(&mut data),
+            Err(QuestDatError::PrsCompressionError(..))
+        );
+
+        let mut data: &[u8] = b"This is definitely not a quest";
+        assert_matches!(
+            QuestDat::from_uncompressed_bytes(&mut data),
+            Err(QuestDatError::DataFormatError(..))
+        );
+        assert_matches!(
+            QuestDat::from_compressed_bytes(&mut data),
+            Err(QuestDatError::PrsCompressionError(..))
+        );
+
+        // dat table header with a table_size issue
+        let mut header: &[u8] = &[
+            0x01, 0x00, 0x00, 0x00, // table_type
+            0xD3, 0x08, 0x00, 0x00, // table_size
+            0x00, 0x00, 0x00, 0x00, // area
+            0xC4, 0x08, 0x00, 0x00, // table_body_size
+        ];
+        assert_matches!(
+            QuestDat::from_uncompressed_bytes(&mut header),
+            Err(QuestDatError::DataFormatError(..))
+        );
+
+        // dat table header with a table_type issue
+        let mut header: &[u8] = &[
+            0x11, 0x00, 0x00, 0x00, // table_type
+            0xD4, 0x08, 0x00, 0x00, // table_size
+            0x00, 0x00, 0x00, 0x00, // area
+            0xC4, 0x08, 0x00, 0x00, // table_body_size
+        ];
+        assert_matches!(
+            QuestDat::from_uncompressed_bytes(&mut header),
+            Err(QuestDatError::DataFormatError(..))
+        );
+
+        // a valid dat table header ...
+        let header: &[u8] = &[
+            0x01, 0x00, 0x00, 0x00, // table_type
+            0xD4, 0x08, 0x00, 0x00, // table_size
+            0x00, 0x00, 0x00, 0x00, // area
+            0xC4, 0x08, 0x00, 0x00, // table_body_size
+        ];
+        // ... with not enough random garbage in the table body area
+        let mut random_garbage = [0u8; 256];
+        let mut rng = StdRng::seed_from_u64(76478964);
+        random_garbage.try_fill(&mut rng).unwrap();
+        let data = [header, &random_garbage].concat();
+        assert_matches!(
+            QuestDat::from_uncompressed_bytes(&mut data.as_slice()),
+            Err(QuestDatError::IoError(..))
+        );
+
+        // totally random data which should be interpreted as an invalid table header
+        let mut data = vec![0u8; 1024];
+        let mut rng = StdRng::seed_from_u64(15785357);
+        data.try_fill(&mut rng).unwrap();
+        assert_matches!(
+            QuestDat::from_uncompressed_bytes(&mut data.as_slice()),
+            Err(QuestDatError::DataFormatError(..))
+        );
+
         Ok(())
     }
 }
