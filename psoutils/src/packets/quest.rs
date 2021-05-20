@@ -94,14 +94,6 @@ impl QuestHeaderPacket {
         Self: Sized,
     {
         let header = PacketHeader::from_bytes(reader)?;
-        if header.id != PACKET_ID_QUEST_HEADER_ONLINE && header.id != PACKET_ID_QUEST_HEADER_OFFLINE
-        {
-            return Err(PacketError::WrongId(header.id));
-        }
-        if header.size != Self::packet_size() as u16 {
-            return Err(PacketError::WrongSize(header.size));
-        }
-
         Self::from_header_and_bytes(header, reader)
     }
 
@@ -112,6 +104,14 @@ impl QuestHeaderPacket {
     where
         Self: Sized,
     {
+        if header.id != PACKET_ID_QUEST_HEADER_ONLINE && header.id != PACKET_ID_QUEST_HEADER_OFFLINE
+        {
+            return Err(PacketError::WrongId(header.id));
+        }
+        if header.size != Self::packet_size() as u16 {
+            return Err(PacketError::WrongSize(header.size));
+        }
+
         let name: [u8; QUEST_HEADER_NAME_SIZE] = reader.read_bytes()?;
         let unused = reader.read_u16::<LittleEndian>()?;
         let flags = reader.read_u16::<LittleEndian>()?;
@@ -214,13 +214,6 @@ impl QuestDataPacket {
         Self: Sized,
     {
         let header = PacketHeader::from_bytes(reader)?;
-        if header.id != PACKET_ID_QUEST_DATA_ONLINE && header.id != PACKET_ID_QUEST_DATA_OFFLINE {
-            return Err(PacketError::WrongId(header.id));
-        }
-        if header.size != Self::packet_size() as u16 {
-            return Err(PacketError::WrongSize(header.size));
-        }
-
         Self::from_header_and_bytes(header, reader)
     }
 
@@ -231,6 +224,13 @@ impl QuestDataPacket {
     where
         Self: Sized,
     {
+        if header.id != PACKET_ID_QUEST_DATA_ONLINE && header.id != PACKET_ID_QUEST_DATA_OFFLINE {
+            return Err(PacketError::WrongId(header.id));
+        }
+        if header.size != Self::packet_size() as u16 {
+            return Err(PacketError::WrongSize(header.size));
+        }
+
         let filename: [u8; QUEST_HEADER_FILENAME_SIZE] = reader.read_bytes()?;
         let data: [u8; QUEST_DATA_PACKET_DATA_SIZE] = reader.read_bytes()?;
         let size = reader.read_u32::<LittleEndian>()?;
