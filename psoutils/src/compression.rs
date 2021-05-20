@@ -188,7 +188,7 @@ impl<'a> ByteReader<'a> {
     }
 
     pub fn next(&mut self) -> Next {
-        if self.offset <= self.source.len() {
+        if self.offset < self.source.len() {
             let result = Next::Byte(self.source[self.offset]);
             self.offset += 1;
             result
