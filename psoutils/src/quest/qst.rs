@@ -415,8 +415,6 @@ mod tests {
     use std::ops::Deref;
 
     use claim::*;
-    use rand::prelude::StdRng;
-    use rand::{Fill, SeedableRng};
     use tempfile::TempDir;
 
     use crate::quest::bin::tests::{validate_quest_118_bin, validate_quest_58_bin};
