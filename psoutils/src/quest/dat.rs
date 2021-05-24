@@ -137,6 +137,17 @@ pub enum QuestArea {
     InvalidEpisode(u32),
 }
 
+impl Display for QuestArea {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use QuestArea::*;
+        match self {
+            Area(s) => write!(f, "{}", s),
+            InvalidArea(n) => write!(f, "Invalid Area: {}", n),
+            InvalidEpisode(n) => write!(f, "Invalid Episode: {}", n),
+        }
+    }
+}
+
 impl QuestDatTable {
     pub fn table_type(&self) -> QuestDatTableType {
         self.header.table_type
