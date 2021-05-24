@@ -2,6 +2,7 @@
 
 members = [
     "psoutils",
+    "psogc_quest_tool"
 ]
 
 
