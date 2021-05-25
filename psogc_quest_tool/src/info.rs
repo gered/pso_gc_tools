@@ -165,3 +165,48 @@ pub fn quest_info(args: &[String]) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use claim::*;
+
+    // TODO: some way to match the specific error message string? or probably should just replace
+    //       anyhow usage with a specific error type ...
+
+    #[test]
+    pub fn no_args_fails_with_error() {
+        let args: &[String] = &[];
+        assert_matches!(quest_info(args), Err(_));
+    }
+
+    #[test]
+    pub fn too_many_args_fails_with_error() {
+        let args = &["a".to_string(), "b".to_string(), "c".to_string()];
+        assert_matches!(quest_info(args), Err(_));
+    }
+
+    #[test]
+    pub fn succeeds_with_single_file_arg() {
+        let args = &["../psoutils/test-assets/q058-ret-gc.online.qst".to_string()];
+        assert_ok!(quest_info(args));
+    }
+
+    #[test]
+    pub fn succeeds_with_two_file_args() {
+        let args = &[
+            "../psoutils/test-assets/q058-ret-gc.bin".to_string(),
+            "../psoutils/test-assets/q058-ret-gc.dat".to_string(),
+        ];
+        assert_ok!(quest_info(args));
+    }
+
+    #[test]
+    pub fn fails_when_bin_dat_file_args_in_wrong_order() {
+        let args = &[
+            "../psoutils/test-assets/q058-ret-gc.dat".to_string(),
+            "../psoutils/test-assets/q058-ret-gc.bin".to_string(),
+        ];
+        assert_matches!(quest_info(args), Err(_));
+    }
+}

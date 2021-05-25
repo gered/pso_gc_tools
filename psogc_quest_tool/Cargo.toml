@@ -12,3 +12,6 @@ crc = "1.8.1"
 
 [dependencies.psoutils]
 path = "../psoutils"
+
+[dev-dependencies]
+claim = "0.5.0"
