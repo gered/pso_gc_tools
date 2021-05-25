@@ -15,3 +15,4 @@ path = "../psoutils"
 
 [dev-dependencies]
 claim = "0.5.0"
+tempfile = "3.2.0"
