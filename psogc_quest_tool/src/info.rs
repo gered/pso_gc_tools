@@ -42,7 +42,11 @@ fn display_quest_bin_info(bin: &QuestBin) {
         bin.header.episode() + 1,
         bin.header.episode()
     );
-    println!("language:                   {:?}", bin.header.language);
+    println!(
+        "language:                   {:?}, encoding: {}",
+        bin.header.language,
+        bin.header.language.get_encoding().name()
+    );
     println!(
         "short_description:          {}\n",
         format_description_field(&bin.header.short_description)
