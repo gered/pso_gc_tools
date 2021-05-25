@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.40"
+crc = "1.8.1"
 
 [dependencies.psoutils]
 path = "../psoutils"
