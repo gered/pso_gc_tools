@@ -546,10 +546,10 @@ mod tests {
 
     #[test]
     pub fn read_quest_58_qst_from_file() -> Result<(), QuestQstError> {
-        let qst = QuestQst::from_file(Path::new("test-assets/q058-ret-gc.online.qst"))?;
+        let qst = QuestQst::from_file(Path::new("../test-assets/q058-ret-gc.online.qst"))?;
         validate_quest_58_qst(&qst, 1438, 15097, true)?;
 
-        let qst = QuestQst::from_file(Path::new("test-assets/q058-ret-gc.offline.qst"))?;
+        let qst = QuestQst::from_file(Path::new("../test-assets/q058-ret-gc.offline.qst"))?;
         validate_quest_58_qst(&qst, 1571, 15105, false)?;
 
         Ok(())
@@ -557,8 +557,8 @@ mod tests {
 
     #[test]
     pub fn write_quest_58_qst_to_file() -> Result<(), QuestQstError> {
-        let online_data = include_bytes!("../../test-assets/q058-ret-gc.online.qst");
-        let offline_data = include_bytes!("../../test-assets/q058-ret-gc.offline.qst");
+        let online_data = include_bytes!("../../../test-assets/q058-ret-gc.online.qst");
+        let offline_data = include_bytes!("../../../test-assets/q058-ret-gc.offline.qst");
 
         let tmp_dir = TempDir::new()?;
 
@@ -581,10 +581,10 @@ mod tests {
 
     #[test]
     pub fn read_quest_118_qst_from_file() -> Result<(), QuestQstError> {
-        let qst = QuestQst::from_file(Path::new("test-assets/q118-vr-gc.online.qst"))?;
+        let qst = QuestQst::from_file(Path::new("../test-assets/q118-vr-gc.online.qst"))?;
         validate_quest_118_qst(&qst, 14208, 11802, true)?;
 
-        let qst = QuestQst::from_file(Path::new("test-assets/q118-vr-gc.offline.qst"))?;
+        let qst = QuestQst::from_file(Path::new("../test-assets/q118-vr-gc.offline.qst"))?;
         validate_quest_118_qst(&qst, 14801, 11810, false)?;
 
         Ok(())
@@ -592,8 +592,8 @@ mod tests {
 
     #[test]
     pub fn write_quest_118_qst_to_file() -> Result<(), QuestQstError> {
-        let online_data = include_bytes!("../../test-assets/q118-vr-gc.online.qst");
-        let offline_data = include_bytes!("../../test-assets/q118-vr-gc.offline.qst");
+        let online_data = include_bytes!("../../../test-assets/q118-vr-gc.online.qst");
+        let offline_data = include_bytes!("../../../test-assets/q118-vr-gc.offline.qst");
 
         let tmp_dir = TempDir::new()?;
 
@@ -616,8 +616,8 @@ mod tests {
 
     #[test]
     pub fn create_qst_from_quest_58_bindat_files() -> Result<(), QuestQstError> {
-        let mut bin = QuestBin::from_compressed_file(Path::new("test-assets/q058-ret-gc.bin"))?;
-        let dat = QuestDat::from_compressed_file(Path::new("test-assets/q058-ret-gc.dat"))?;
+        let mut bin = QuestBin::from_compressed_file(Path::new("../test-assets/q058-ret-gc.bin"))?;
+        let dat = QuestDat::from_compressed_file(Path::new("../test-assets/q058-ret-gc.dat"))?;
 
         let qst = QuestQst::from_bindat(&bin, &dat)?;
         validate_quest_58_qst(&qst, 1565, 15507, true)?;
@@ -631,8 +631,8 @@ mod tests {
 
     #[test]
     pub fn create_qst_from_quest_118_bindat_files() -> Result<(), QuestQstError> {
-        let mut bin = QuestBin::from_compressed_file(Path::new("test-assets/q118-vr-gc.bin"))?;
-        let dat = QuestDat::from_compressed_file(Path::new("test-assets/q118-vr-gc.dat"))?;
+        let mut bin = QuestBin::from_compressed_file(Path::new("../test-assets/q118-vr-gc.bin"))?;
+        let dat = QuestDat::from_compressed_file(Path::new("../test-assets/q118-vr-gc.dat"))?;
 
         let qst = QuestQst::from_bindat(&bin, &dat)?;
         validate_quest_118_qst(&qst, 14794, 12277, true)?;
@@ -938,7 +938,7 @@ mod tests {
 
     #[test]
     pub fn error_when_qst_does_not_contain_both_bin_and_dat_packets() {
-        let qst = QuestQst::from_file(Path::new("test-assets/q058-ret-gc.online.qst")).unwrap();
+        let qst = QuestQst::from_file(Path::new("../test-assets/q058-ret-gc.online.qst")).unwrap();
         // write only the bin header+data packets into a buffer which we will then read a qst from
         let mut bytes = Cursor::new(Vec::new());
         qst.bin_header.write_bytes(&mut bytes).unwrap();
@@ -955,7 +955,7 @@ mod tests {
 
     #[test]
     pub fn error_when_qst_header_packet_ids_do_not_all_match() {
-        let qst = QuestQst::from_file(Path::new("test-assets/q058-ret-gc.online.qst")).unwrap();
+        let qst = QuestQst::from_file(Path::new("../test-assets/q058-ret-gc.online.qst")).unwrap();
         let mut bytes = qst.to_bytes().unwrap();
 
         // packet id is the very first byte. switch it to the wrong type
@@ -969,7 +969,7 @@ mod tests {
 
     #[test]
     pub fn error_when_qst_data_packet_ids_do_not_all_match() {
-        let qst = QuestQst::from_file(Path::new("test-assets/q058-ret-gc.online.qst")).unwrap();
+        let qst = QuestQst::from_file(Path::new("../test-assets/q058-ret-gc.online.qst")).unwrap();
         let mut bytes = qst.to_bytes().unwrap();
 
         // switch packet id of the first data packet to the wrong type

@@ -329,7 +329,7 @@ mod tests {
         let dat_save_path = tmp_dir.path().join("quest58.dat");
 
         let args = &[
-            "../psoutils/test-assets/q058-ret-gc.online.qst".to_string(),
+            "../test-assets/q058-ret-gc.online.qst".to_string(),
             "raw_bindat".to_string(),
             bin_save_path.to_string_lossy().into_owned(),
             dat_save_path.to_string_lossy().into_owned(),
@@ -346,7 +346,7 @@ mod tests {
         let dat_save_path = tmp_dir.path().join("quest58.dat");
 
         let args = &[
-            "../psoutils/test-assets/q058-ret-gc.offline.qst".to_string(),
+            "../test-assets/q058-ret-gc.offline.qst".to_string(),
             "prs_bindat".to_string(),
             bin_save_path.to_string_lossy().into_owned(),
             dat_save_path.to_string_lossy().into_owned(),
@@ -362,8 +362,8 @@ mod tests {
         let qst_save_path = tmp_dir.path().join("quest58.qst");
 
         let args = &[
-            "../psoutils/test-assets/q058-ret-gc.bin".to_string(),
-            "../psoutils/test-assets/q058-ret-gc.dat".to_string(),
+            "../test-assets/q058-ret-gc.bin".to_string(),
+            "../test-assets/q058-ret-gc.dat".to_string(),
             "online_qst".to_string(),
             qst_save_path.to_string_lossy().into_owned(),
         ];
@@ -377,8 +377,8 @@ mod tests {
         let qst_save_path = tmp_dir.path().join("quest58.qst");
 
         let args = &[
-            "../psoutils/test-assets/q058-ret-gc.uncompressed.bin".to_string(),
-            "../psoutils/test-assets/q058-ret-gc.uncompressed.dat".to_string(),
+            "../test-assets/q058-ret-gc.uncompressed.bin".to_string(),
+            "../test-assets/q058-ret-gc.uncompressed.dat".to_string(),
             "offline_qst".to_string(),
             qst_save_path.to_string_lossy().into_owned(),
         ];

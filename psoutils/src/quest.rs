@@ -148,41 +148,41 @@ mod tests {
 
     #[test]
     pub fn can_load_from_compressed_bindat_files() {
-        let bin_path = Path::new("test-assets/q058-ret-gc.bin");
-        let dat_path = Path::new("test-assets/q058-ret-gc.dat");
+        let bin_path = Path::new("../test-assets/q058-ret-gc.bin");
+        let dat_path = Path::new("../test-assets/q058-ret-gc.dat");
         assert_ok!(Quest::from_bindat_files(bin_path, dat_path));
     }
 
     #[test]
     pub fn can_load_from_uncompressed_bindat_files() {
-        let bin_path = Path::new("test-assets/q058-ret-gc.uncompressed.bin");
-        let dat_path = Path::new("test-assets/q058-ret-gc.uncompressed.dat");
+        let bin_path = Path::new("../test-assets/q058-ret-gc.uncompressed.bin");
+        let dat_path = Path::new("../test-assets/q058-ret-gc.uncompressed.dat");
         assert_ok!(Quest::from_bindat_files(bin_path, dat_path));
     }
 
     #[test]
     pub fn can_load_from_offline_qst_file() {
-        let path = Path::new("test-assets/q058-ret-gc.offline.qst");
+        let path = Path::new("../test-assets/q058-ret-gc.offline.qst");
         assert_ok!(Quest::from_qst_file(path));
     }
 
     #[test]
     pub fn can_load_from_online_qst_file() {
-        let path = Path::new("test-assets/q058-ret-gc.online.qst");
+        let path = Path::new("../test-assets/q058-ret-gc.online.qst");
         assert_ok!(Quest::from_qst_file(path));
     }
 
     #[test]
     pub fn can_create_from_qst_struct() {
-        let qst = QuestQst::from_file(Path::new("test-assets/q058-ret-gc.online.qst")).unwrap();
+        let qst = QuestQst::from_file(Path::new("../test-assets/q058-ret-gc.online.qst")).unwrap();
         assert_ok!(Quest::from_qst(qst));
     }
 
     #[test]
     pub fn can_save_to_compressed_bindat_files() -> Result<(), QuestError> {
         let quest = Quest::from_bindat_files(
-            Path::new("test-assets/q058-ret-gc.bin"),
-            Path::new("test-assets/q058-ret-gc.dat"),
+            Path::new("../test-assets/q058-ret-gc.bin"),
+            Path::new("../test-assets/q058-ret-gc.dat"),
         )?;
         let tmp_dir = TempDir::new()?;
         let bin_save_path = tmp_dir.path().join("quest58.bin");
@@ -196,8 +196,8 @@ mod tests {
     #[test]
     pub fn can_save_to_uncompressed_bindat_files() -> Result<(), QuestError> {
         let quest = Quest::from_bindat_files(
-            Path::new("test-assets/q058-ret-gc.bin"),
-            Path::new("test-assets/q058-ret-gc.dat"),
+            Path::new("../test-assets/q058-ret-gc.bin"),
+            Path::new("../test-assets/q058-ret-gc.dat"),
         )?;
         let tmp_dir = TempDir::new()?;
         let bin_save_path = tmp_dir.path().join("quest58.bin");
@@ -211,8 +211,8 @@ mod tests {
     #[test]
     pub fn can_save_to_qst_file() -> Result<(), QuestError> {
         let quest = Quest::from_bindat_files(
-            Path::new("test-assets/q058-ret-gc.bin"),
-            Path::new("test-assets/q058-ret-gc.dat"),
+            Path::new("../test-assets/q058-ret-gc.bin"),
+            Path::new("../test-assets/q058-ret-gc.dat"),
         )?;
         let tmp_dir = TempDir::new()?;
         let qst_save_path = tmp_dir.path().join("quest58.qst");

@@ -188,15 +188,15 @@ mod tests {
 
     #[test]
     pub fn succeeds_with_single_file_arg() {
-        let args = &["../psoutils/test-assets/q058-ret-gc.online.qst".to_string()];
+        let args = &["../test-assets/q058-ret-gc.online.qst".to_string()];
         assert_ok!(quest_info(args));
     }
 
     #[test]
     pub fn succeeds_with_two_file_args() {
         let args = &[
-            "../psoutils/test-assets/q058-ret-gc.bin".to_string(),
-            "../psoutils/test-assets/q058-ret-gc.dat".to_string(),
+            "../test-assets/q058-ret-gc.bin".to_string(),
+            "../test-assets/q058-ret-gc.dat".to_string(),
         ];
         assert_ok!(quest_info(args));
     }
@@ -204,8 +204,8 @@ mod tests {
     #[test]
     pub fn fails_when_bin_dat_file_args_in_wrong_order() {
         let args = &[
-            "../psoutils/test-assets/q058-ret-gc.dat".to_string(),
-            "../psoutils/test-assets/q058-ret-gc.bin".to_string(),
+            "../test-assets/q058-ret-gc.dat".to_string(),
+            "../test-assets/q058-ret-gc.bin".to_string(),
         ];
         assert_matches!(quest_info(args), Err(_));
     }
