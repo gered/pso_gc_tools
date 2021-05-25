@@ -201,7 +201,7 @@ impl QuestDat {
                 break;
             }
 
-            if table_size != table_body_size + QUEST_DAT_TABLE_HEADER_SIZE as u32 {
+            if table_size != table_body_size.wrapping_add(QUEST_DAT_TABLE_HEADER_SIZE as u32) {
                 return Err(QuestDatError::DataFormatError(format!(
                     "Malformed table at index {}. table_size != table_body_size + 16",
                     index
