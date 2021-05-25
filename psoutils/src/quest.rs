@@ -1,16 +1,24 @@
+use std::fmt::Write;
 use std::path::Path;
 
+use byteorder::WriteBytesExt;
 use thiserror::Error;
 
 use crate::quest::bin::{QuestBin, QuestBinError};
-use crate::quest::dat::{QuestDat, QuestDatError};
+use crate::quest::dat::{QuestDat, QuestDatError, QuestDatTableType};
 use crate::quest::qst::{QuestQst, QuestQstError};
 use crate::text::Language;
-use byteorder::WriteBytesExt;
+use crate::utils::crc32;
 
 pub mod bin;
 pub mod dat;
 pub mod qst;
+
+fn format_description_field(description: &String) -> String {
+    description
+        .trim()
+        .replace("\n", "\n                            ")
+}
 
 #[derive(Error, Debug)]
 pub enum QuestError {
@@ -138,13 +146,201 @@ impl Quest {
     pub fn episode(&self) -> u8 {
         self.bin.header.episode()
     }
+
+    pub fn display_bin_info(&self) -> String {
+        let object_code_crc32 = crc32(self.bin.object_code.as_ref());
+        let function_offset_table_crc32 = crc32(self.bin.function_offset_table.as_ref());
+
+        let mut s = String::new();
+
+        // HACK: i'm just directly calling .unwrap() for all of these because we're writing into
+        //       a string buffer that we own here, so this should really never fail and i didn't
+        //       want to have this method return a Result<>
+
+        writeln!(s, "QUEST .BIN FILE").unwrap();
+        writeln!(
+            s,
+            "======================================================================"
+        )
+        .unwrap();
+        writeln!(
+            s,
+            "Decompressed Size:          {}",
+            self.bin.calculate_size()
+        )
+        .unwrap();
+        writeln!(s, "Name:                       {}", self.bin.header.name).unwrap();
+        writeln!(
+            s,
+            "object_code:                size: {}, crc32: {:08x}",
+            self.bin.object_code.len(),
+            object_code_crc32
+        )
+        .unwrap();
+        writeln!(
+            s,
+            "function_offset_table:      size: {}, crc32: {:08x}",
+            self.bin.function_offset_table.len(),
+            function_offset_table_crc32
+        )
+        .unwrap();
+        writeln!(
+            s,
+            "Is Download?                {}",
+            self.bin.header.is_download
+        )
+        .unwrap();
+        writeln!(
+            s,
+            "Quest Number/ID:            {0} (8-bit)  {1}, 0x{1:04x} (16-bit)",
+            self.bin.header.quest_number(),
+            self.bin.header.quest_number_u16()
+        )
+        .unwrap();
+        writeln!(
+            s,
+            "Episode:                    {} (0x{:02x})",
+            self.bin.header.episode() + 1,
+            self.bin.header.episode()
+        )
+        .unwrap();
+        writeln!(
+            s,
+            "Language:                   {:?}, encoding: {}",
+            self.bin.header.language,
+            self.bin.header.language.get_encoding().name()
+        )
+        .unwrap();
+        writeln!(
+            s,
+            "Short Description:          {}\n",
+            format_description_field(&self.bin.header.short_description)
+        )
+        .unwrap();
+        writeln!(
+            s,
+            "Long Description:           {}\n",
+            format_description_field(&self.bin.header.long_description)
+        )
+        .unwrap();
+
+        s
+    }
+
+    pub fn display_dat_info(&self) -> String {
+        let mut s = String::new();
+
+        let episode = self.bin.header.episode() as u32;
+
+        // HACK: i'm just directly calling .unwrap() for all of these because we're writing into
+        //       a string buffer that we own here, so this should really never fail and i didn't
+        //       want to have this method return a Result<>
+
+        writeln!(s, "QUEST .DAT FILE").unwrap();
+        writeln!(
+            s,
+            "================================================================================"
+        )
+        .unwrap();
+        writeln!(s, "Decompressed size: {}\n", self.dat.calculate_size()).unwrap();
+        writeln!(
+            s,
+            "(Using episode {} to lookup table area names)",
+            episode + 1
+        )
+        .unwrap();
+
+        writeln!(
+            s,
+            "Idx Size  Table Type            Area                           Count   CRC32"
+        )
+        .unwrap();
+
+        for (index, table) in self.dat.tables.iter().enumerate() {
+            let body_size = table.bytes.len();
+            let body_crc32 = crc32(table.bytes.as_ref());
+
+            match table.table_type() {
+                QuestDatTableType::Object => {
+                    let num_entities = body_size / 68;
+                    writeln!(
+                        s,
+                        "{:3} {:5} {:<21} {:30} {:5}   {:08x}",
+                        index,
+                        body_size,
+                        table.table_type().to_string(),
+                        table.area_name(episode).to_string(),
+                        num_entities,
+                        body_crc32
+                    )
+                    .unwrap();
+                }
+                QuestDatTableType::NPC => {
+                    let num_entities = body_size / 72;
+                    writeln!(
+                        s,
+                        "{:3} {:5} {:<21} {:30} {:5}   {:08x}",
+                        index,
+                        body_size,
+                        table.table_type().to_string(),
+                        table.area_name(episode).to_string(),
+                        num_entities,
+                        body_crc32
+                    )
+                    .unwrap();
+                }
+                QuestDatTableType::Wave => {
+                    writeln!(
+                        s,
+                        "{:3} {:5} {:<21} {:30}         {:08x}",
+                        index,
+                        body_size,
+                        table.table_type().to_string(),
+                        table.area_name(episode).to_string(),
+                        body_crc32
+                    )
+                    .unwrap();
+                }
+                QuestDatTableType::ChallengeModeSpawns => {
+                    writeln!(
+                        s,
+                        "{:3} {:5} {:<21} {:30}         {:08x}",
+                        index,
+                        body_size,
+                        table.table_type().to_string(),
+                        table.area_name(episode).to_string(),
+                        body_crc32
+                    )
+                    .unwrap();
+                }
+                QuestDatTableType::ChallengeModeUnknown => {
+                    writeln!(
+                        s,
+                        "{:3} {:5} {:<21} {:30}         {:08x}",
+                        index,
+                        body_size,
+                        table.table_type().to_string(),
+                        table.area_name(episode).to_string(),
+                        body_crc32
+                    )
+                    .unwrap();
+                }
+                QuestDatTableType::Unknown(n) => {
+                    writeln!(s, "{:3} {:5} Unknown: {}", index, body_size, n).unwrap();
+                }
+            };
+        }
+
+        s
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use claim::*;
     use tempfile::*;
+
+    use super::*;
 
     #[test]
     pub fn can_load_from_compressed_bindat_files() {
