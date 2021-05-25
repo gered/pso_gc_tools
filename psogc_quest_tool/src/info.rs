@@ -57,6 +57,9 @@ fn display_quest_bin_info(bin: &QuestBin) {
 fn display_quest_dat_info(dat: &QuestDat, episode: u32) {
     println!("QUEST .DAT FILE");
     println!("================================================================================");
+    println!("(Using episode {} to lookup table area names)", episode + 1);
+
+    println!("Idx Size  Table Type            Area                           Count   CRC32");
 
     for (index, table) in dat.tables.iter().enumerate() {
         let body_size = table.bytes.len();
@@ -131,16 +134,19 @@ pub fn quest_info(args: &[String]) -> Result<()> {
             std::process::exit(1);
         }
         1 => {
-            println!("Loading quest from .qst file ...");
+            println!("Loading quest from:\n    .qst file: {}", &args[0]);
             let qst_path = Path::new(&args[0]);
-            Quest::from_qst_file(qst_path).context("Unable to load .qst file")?
+            Quest::from_qst_file(qst_path).context("Unable to load quest from .qst file")?
         }
         2 => {
-            println!("Loading quest from .bin and .dat file ...");
+            println!(
+                "Loading quest from:\n    .bin file: {}\n    .dat file: {}",
+                &args[0], &args[1]
+            );
             let bin_path = Path::new(&args[0]);
             let dat_path = Path::new(&args[1]);
             Quest::from_bindat_files(bin_path, dat_path)
-                .context("Unable to load .bin/.dat files")?
+                .context("Unable to load quest from .bin/.dat files")?
         }
         _ => {
             println!("Too many arguments. Should only specify either a single .qst file, or a .bin and .dat file.");
@@ -148,8 +154,10 @@ pub fn quest_info(args: &[String]) -> Result<()> {
         }
     };
 
+    println!();
     display_quest_bin_info(&quest.bin);
     display_quest_dat_info(&quest.dat, quest.bin.header.episode() as u32);
+    println!();
 
     Ok(())
 }
