@@ -16,8 +16,8 @@ fn display_help() {
     println!("USAGE: psogc_quest_tool <COMMAND> <ARGS...>\n");
     println!("COMMANDS:");
     println!("  info    - Displays info about a quest.");
-    println!("            - info input.bin input.dat");
-    println!("            - info input.qst");
+    println!("            - info <input.bin> <input.dat>");
+    println!("            - info <input.qst>");
     println!("  convert - Converts a quest to a different file format");
     println!("            - convert <input bin+dat or qst> <format_type> <output bin+dat or qst>");
     println!("            Where format_type should be one of: raw_bindat, prs_bindat, online_qst, offline_qst");
@@ -33,14 +33,13 @@ fn main() -> Result<()> {
     let command = &args[1];
     let remaining_args = &args[2..];
     match command.to_lowercase().as_str() {
-        "info" => quest_info(&remaining_args),
-        "convert" => quest_convert(&remaining_args),
+        "info" => quest_info(&remaining_args)?,
+        "convert" => quest_convert(&remaining_args)?,
         _ => {
             println!("Unrecognized command");
             display_help();
-            Ok(())
         }
-    }?;
+    };
 
     Ok(())
 }
