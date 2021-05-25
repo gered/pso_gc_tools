@@ -218,6 +218,14 @@ impl QuestDat {
                 otherwise => otherwise,
             };
 
+            // note: both episode area lists are the same size
+            if area >= QUEST_DAT_AREAS[0].len() as u32 {
+                return Err(QuestDatError::DataFormatError(format!(
+                    "Invalid area {} for table at index {}",
+                    area, index
+                )));
+            }
+
             let mut body_bytes = vec![0u8; table_body_size as usize];
             reader.read_exact(&mut body_bytes)?;
 
