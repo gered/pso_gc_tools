@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 
 use psoutils::quest::bin::QuestBin;
 use psoutils::quest::dat::{QuestDat, QuestDatTableType};
@@ -132,15 +132,16 @@ fn display_quest_dat_info(dat: &QuestDat, episode: u32) {
 }
 
 pub fn quest_info(args: &[String]) -> Result<()> {
+    println!("Showing quest information");
+
     let quest = match args.len() {
         0 => {
-            println!("No quest file(s) specified.");
-            std::process::exit(1);
+            return Err(anyhow!("No quest file(s) specified."));
         }
         1 => {
             println!("Loading quest from:\n    .qst file: {}", &args[0]);
             let qst_path = Path::new(&args[0]);
-            Quest::from_qst_file(qst_path).context("Unable to load quest from .qst file")?
+            Quest::from_qst_file(qst_path).context("Failed to load quest from .qst file")?
         }
         2 => {
             println!(
@@ -150,11 +151,10 @@ pub fn quest_info(args: &[String]) -> Result<()> {
             let bin_path = Path::new(&args[0]);
             let dat_path = Path::new(&args[1]);
             Quest::from_bindat_files(bin_path, dat_path)
-                .context("Unable to load quest from .bin/.dat files")?
+                .context("Failed to load quest from .bin/.dat files")?
         }
         _ => {
-            println!("Too many arguments. Should only specify either a single .qst file, or a .bin and .dat file.");
-            std::process::exit(1);
+            return Err(anyhow!("Too many arguments. Should only specify either a single .qst file, or a .bin and .dat file."));
         }
     };
 

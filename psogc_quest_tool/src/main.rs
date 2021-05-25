@@ -1,6 +1,6 @@
 use std::env;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 use psogc_quest_tool::convert::quest_convert;
 use psogc_quest_tool::info::quest_info;
