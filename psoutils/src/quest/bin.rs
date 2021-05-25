@@ -110,6 +110,12 @@ impl QuestBin {
         }
 
         let function_offset_table_offset = reader.read_u32::<LittleEndian>()?;
+        if function_offset_table_offset <= object_code_offset {
+            return Err(QuestBinError::DataFormatError(format!(
+                "function_offset_table_offset points to a location that occurs before the object_code"
+            )));
+        }
+
         let bin_size = reader.read_u32::<LittleEndian>()?;
         let _xfffffff = reader.read_u32::<LittleEndian>()?; // always expected to be 0xffffffff
         let is_download = reader.read_u8()?;
