@@ -6,6 +6,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, TimeZone, Utc};
 use etherparse::{IpHeader, PacketHeaders};
 use pcap::{Capture, Offline};
 use pretty_hex::*;
@@ -14,6 +15,10 @@ use thiserror::Error;
 use psoutils::encryption::{Crypter, GCCrypter};
 use psoutils::packets::init::InitEncryptionPacket;
 use psoutils::packets::{GenericPacket, PacketHeader};
+
+fn timeval_to_dt(ts: &::libc::timeval) -> DateTime<Utc> {
+    Utc.timestamp(ts.tv_sec, ts.tv_usec as u32 * 1000)
+}
 
 #[derive(Error, Debug)]
 enum TcpDataPacketError {
@@ -324,19 +329,15 @@ pub fn analyze(path: &Path) -> Result<()> {
     while let Ok(raw_packet) = cap.next() {
         if let Ok(decoded_packet) = PacketHeaders::from_ethernet_slice(raw_packet.data) {
             if let Ok(our_packet) = TcpDataPacket::try_from(decoded_packet) {
-                println!(
-                    ">>>> packet at ts: {}.{} - {:?}\n",
-                    raw_packet.header.ts.tv_sec, raw_packet.header.ts.tv_usec, our_packet
-                );
+                let dt = timeval_to_dt(&raw_packet.header.ts);
+
+                println!("<<<<< {} >>>>> - {:?}\n", dt, our_packet);
 
                 let peer_address = our_packet.source;
 
-                session.process_packet(our_packet).with_context(|| {
-                    format!(
-                        "Session failed to process packet at ts: {}.{}",
-                        raw_packet.header.ts.tv_sec, raw_packet.header.ts.tv_usec
-                    )
-                })?;
+                session
+                    .process_packet(our_packet)
+                    .context("Session failed to process packet")?;
 
                 if let Some(peer) = session.get_peer(peer_address) {
                     while let Some(pso_packet) = peer.next() {
