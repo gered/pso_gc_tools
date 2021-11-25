@@ -1,8 +1,10 @@
-use crate::text::LanguageError;
+use crate::text::{Language, LanguageError};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
 
 pub mod quest;
+
+pub const PACKET_DEFAULT_LANGUAGE: Language = Language::English;
 
 #[derive(Error, Debug)]
 pub enum PacketError {
