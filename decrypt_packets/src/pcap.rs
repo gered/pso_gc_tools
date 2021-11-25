@@ -14,23 +14,6 @@ use psoutils::encryption::{Crypter, GCCrypter};
 use psoutils::packets::init::InitEncryptionPacket;
 use psoutils::packets::{GenericPacket, PacketHeader};
 
-fn take_buffer_bytes(buffer: &mut Vec<u8>, length: usize) -> Box<[u8]> {
-    let bytes: Box<[u8]> = buffer[0..length].into();
-    let remaining_length = buffer.len() - length;
-    buffer.copy_within(length.., 0);
-    buffer.truncate(remaining_length);
-    bytes
-}
-
-fn peek_buffer_bytes(buffer: &Vec<u8>, length: usize) -> Box<[u8]> {
-    let length = if buffer.len() > length {
-        buffer.len()
-    } else {
-        length
-    };
-    buffer[0..length].into()
-}
-
 #[derive(Error, Debug)]
 enum TcpDataPacketError {
     #[error("No IpHeader in packet")]
@@ -280,7 +263,7 @@ pub fn analyze(path: &Path) -> Result<()> {
     println!("Opening capture file: {}", path.to_string_lossy());
 
     let mut cap: Capture<Offline> = Capture::from_file(path)?.into();
-    cap.filter("tcp");
+    cap.filter("tcp")?;
 
     let mut context = Context::new();
 
@@ -293,7 +276,7 @@ pub fn analyze(path: &Path) -> Result<()> {
 
     while let Ok(raw_packet) = cap.next() {
         if let Ok(decoded_packet) = PacketHeaders::from_ethernet_slice(raw_packet.data) {
-            if let Ok(mut our_packet) = TcpDataPacket::try_from(decoded_packet) {
+            if let Ok(our_packet) = TcpDataPacket::try_from(decoded_packet) {
                 println!(
                     ">>>> packet - ts: {}.{}, from: {:?}, to: {:?}, length: {}\n",
                     raw_packet.header.ts.tv_sec,
@@ -305,9 +288,9 @@ pub fn analyze(path: &Path) -> Result<()> {
                 if let Some(pso_packet) = context.process(our_packet)? {
                     println!(
                         "id={:#04x}, flags={:#04x}, size={}",
-                        pso_packet.packet.header.id,
-                        pso_packet.packet.header.flags,
-                        pso_packet.packet.header.size
+                        pso_packet.packet.header.id(),
+                        pso_packet.packet.header.flags(),
+                        pso_packet.packet.header.size()
                     );
                     if pso_packet.packet.body.is_empty() {
                         println!("<No data>");

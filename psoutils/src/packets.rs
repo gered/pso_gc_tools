@@ -59,6 +59,10 @@ impl PacketHeader {
         self.id
     }
 
+    pub fn flags(&self) -> u8 {
+        self.flags
+    }
+
     pub fn size(&self) -> u16 {
         self.size
     }
