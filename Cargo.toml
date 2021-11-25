@@ -6,6 +6,3 @@ members = [
     "gci_quest_extract"
 ]
 
-
-[profile.dev]
-opt-level = 1
