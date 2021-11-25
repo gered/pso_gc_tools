@@ -3,6 +3,7 @@
 members = [
     "psoutils",
     "psogc_quest_tool",
-    "gci_quest_extract"
+    "gci_quest_extract",
+    "decrypt_packets"
 ]
 
