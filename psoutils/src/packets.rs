@@ -2,6 +2,7 @@ use crate::text::{Language, LanguageError};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
 
+pub mod init;
 pub mod quest;
 
 pub const PACKET_DEFAULT_LANGUAGE: Language = Language::English;
