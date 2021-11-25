@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
-use std::io::{Cursor, Read};
+use std::fmt::{Debug, Formatter};
+use std::io::Cursor;
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use etherparse::{IpHeader, PacketHeaders};
 use pcap::{Capture, Offline};
 use pretty_hex::*;
@@ -26,7 +27,6 @@ enum TcpDataPacketError {
     NoTcpHeader,
 }
 
-#[derive(Debug)]
 struct TcpDataPacket {
     pub source: SocketAddr,
     pub destination: SocketAddr,
@@ -106,53 +106,49 @@ impl<'a> TryFrom<PacketHeaders<'a>> for TcpDataPacket {
     }
 }
 
-#[derive(Debug)]
-struct PsoPacket {
-    pub source: SocketAddr,
-    pub destination: SocketAddr,
-    pub packet: GenericPacket,
-}
-
-impl PsoPacket {
-    pub fn new<T: Read>(
-        source: SocketAddr,
-        destination: SocketAddr,
-        header: PacketHeader,
-        reader: &mut T,
-    ) -> Result<PsoPacket> {
-        let mut raw_data = vec![0u8; header.size as usize - PacketHeader::header_size()];
-        reader.read_exact(&mut raw_data)?;
-
-        Ok(PsoPacket {
-            source,
-            destination,
-            packet: GenericPacket::new(header, raw_data.into()),
-        })
+impl Debug for TcpDataPacket {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "TcpDataPacket {{ source={}, destination={}, length={} }}",
+            self.source,
+            self.destination,
+            self.data.len()
+        )?;
+        Ok(())
     }
 }
 
 struct Peer {
-    crypter: GCCrypter,
+    crypter: Option<GCCrypter>,
     address: SocketAddr,
-    encrypted_buffer: Vec<u8>,
+    raw_buffer: Vec<u8>,
     decrypted_buffer: Vec<u8>,
+    packets: Vec<GenericPacket>,
 }
 
 impl Peer {
-    pub fn new(crypt_key: u32, address: SocketAddr) -> Peer {
+    pub fn new(address: SocketAddr) -> Peer {
         Peer {
-            crypter: GCCrypter::new(crypt_key),
+            crypter: None,
             address,
-            encrypted_buffer: Vec::new(),
+            raw_buffer: Vec::new(),
             decrypted_buffer: Vec::new(),
+            packets: Vec::new(),
         }
     }
 
-    pub fn address(&self) -> &SocketAddr {
-        &self.address
+    pub fn init_pso_session(&mut self, crypt_key: u32) {
+        self.crypter = Some(GCCrypter::new(crypt_key));
+        self.raw_buffer.clear();
+        self.decrypted_buffer.clear();
     }
 
-    pub fn process_packet(&mut self, packet: TcpDataPacket) -> Result<Option<PsoPacket>> {
+    pub fn push_pso_packet(&mut self, packet: GenericPacket) {
+        self.packets.push(packet)
+    }
+
+    pub fn process_packet(&mut self, packet: TcpDataPacket) -> Result<()> {
         if self.address != packet.source {
             return Err(anyhow!(
                 "This Peer({}) cannot process TcpDataPacket originating from different source: {}",
@@ -161,111 +157,160 @@ impl Peer {
             ));
         }
 
-        // incoming bytes get added to the encrypted buffer first ...
-        self.encrypted_buffer.append(&mut packet.data.into_vec());
+        // don't begin collecting data unless we're prepared to decrypt that data ...
+        if let Some(crypter) = &mut self.crypter {
+            // incoming bytes get added to the raw (encrypted) buffer first ...
+            self.raw_buffer.append(&mut packet.data.into_vec());
 
-        // we should only be decrypting dword-sized bits of data (based on the way that the
-        // encryption algorithm works) so if we have that much data, lets go ahead and decrypt that
-        // much and move those bytes over to the decrypted buffer ...
-        if self.encrypted_buffer.len() >= 4 {
-            let length_to_decrypt = self.encrypted_buffer.len() - (self.encrypted_buffer.len() & 3);
-            let mut bytes_to_decrypt: Vec<u8> =
-                self.encrypted_buffer.drain(0..length_to_decrypt).collect();
-            self.crypter.crypt(&mut bytes_to_decrypt);
-            self.decrypted_buffer.append(&mut bytes_to_decrypt);
+            // we should only be decrypting dword-sized bits of data (based on the way that the
+            // encryption algorithm works) so if we have that much data, lets go ahead and decrypt that
+            // much and move those bytes over to the decrypted buffer ...
+            if self.raw_buffer.len() >= 4 {
+                let length_to_decrypt = self.raw_buffer.len() - (self.raw_buffer.len() & 3); // dword-sized length only!
+                let mut bytes_to_decrypt: Vec<u8> =
+                    self.raw_buffer.drain(0..length_to_decrypt).collect();
+                crypter.crypt(&mut bytes_to_decrypt);
+                self.decrypted_buffer.append(&mut bytes_to_decrypt);
+            }
         }
 
-        // try to read a PacketHeader out of the decrypted buffer, and if successful, read out the
-        // entire packet data if we have enough bytes available in the decrypted buffer
-        // (if either of these fail, we need to leave the current decrypted buffer alone for now)
-        if self.decrypted_buffer.len() >= PacketHeader::header_size() {
-            let mut reader = Cursor::new(&self.decrypted_buffer);
+        // try to extract as many complete packets out of the decrypted buffer as we can
+        while self.decrypted_buffer.len() >= PacketHeader::header_size() {
+            // if we have at least enough bytes for a PacketHeader available, read one out and figure
+            // out if we have enough remaining bytes for the full packet that this header is for
+            let mut reader = &self.decrypted_buffer[0..PacketHeader::header_size()];
             if let Ok(header) = PacketHeader::from_bytes(&mut reader) {
                 if self.decrypted_buffer.len() >= header.size as usize {
-                    let pso_packet =
-                        PsoPacket::new(packet.source, packet.destination, header, &mut reader)?;
-                    // need to also remove the entire packet's bytes from the front of the buffer
-                    self.decrypted_buffer.drain(0..header.size as usize);
-                    return Ok(Some(pso_packet));
+                    // the buffer has enough bytes for this entire packet. read it out and add it
+                    // to our internal list of reconstructed packets
+                    let packet_length = header.size as usize;
+                    let packet_bytes: Vec<u8> =
+                        self.decrypted_buffer.drain(0..packet_length).collect();
+                    let mut reader = Cursor::new(packet_bytes);
+                    self.packets.push(GenericPacket::from_bytes(&mut reader)?);
+                } else {
+                    // unable to read the full packet with the bytes currently in the decrypted
+                    // buffer ... so we'll need to try again later after receiving some more data
+                    break;
                 }
             }
         }
 
-        Ok(None)
+        Ok(())
     }
 }
 
-struct Context {
-    is_pso_session_inited: bool,
+impl Iterator for Peer {
+    type Item = GenericPacket;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.packets.is_empty() {
+            return None;
+        } else {
+            Some(self.packets.remove(0))
+        }
+    }
+}
+
+impl Debug for Peer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Peer {{ address={} }}", self.address)?;
+        Ok(())
+    }
+}
+
+struct Session {
     peers: HashMap<SocketAddr, Peer>,
 }
 
-impl Context {
-    pub fn new() -> Context {
-        Context {
-            is_pso_session_inited: false,
+impl Session {
+    pub fn new() -> Session {
+        Session {
             peers: HashMap::new(),
         }
     }
 
-    pub fn is_pso_session_inited(&self) -> bool {
-        self.is_pso_session_inited
+    pub fn get_peer(&mut self, address: SocketAddr) -> Option<&mut Peer> {
+        self.peers.get_mut(&address)
     }
 
-    pub fn process(&mut self, packet: TcpDataPacket) -> Result<Option<PsoPacket>> {
-        if packet.tcp_rst {
-            println!("Encountered TCP RST. Resetting session. Expecting to encounter new peers and InitEncryptionPacket next ...");
-            self.peers.clear();
-            self.is_pso_session_inited = false;
-            Ok(None)
-        } else if packet.tcp_fin {
-            println!("Peer {} sent TCP FIN. Resetting session. Expecting to encounter new peers and InitEncryptionPacket next ...", packet.source);
-            self.peers.clear();
-            self.is_pso_session_inited = false;
-            Ok(None)
-        } else if let Some(init_packet) = packet.as_init_encryption_packet() {
-            println!("Encountered InitEncryptionPacket. Starting new session ...");
-            // the "init packet" indicates the start of a PSO client/server session. this could occur
-            // multiple times within the same pcap file as a client moves between different servers
-            // (e.g. login server, ship server, ...)
-
-            self.peers.clear();
-            let server = Peer::new(init_packet.server_key, packet.source);
-            let client = Peer::new(init_packet.client_key, packet.destination);
-            self.peers.insert(packet.source, server);
-            self.peers.insert(packet.destination, client);
-
-            self.is_pso_session_inited = true;
-
-            Ok(Some(PsoPacket {
-                source: packet.source,
-                destination: packet.destination,
-                packet: init_packet.try_into()?,
-            }))
-        } else if !self.peers.is_empty() {
-            // otherwise, if we have a set of peers already (because of a previous init packet)
-            // then we can process this packet using the peer it was sent from
-
-            let peer = match self.peers.get_mut(&packet.source) {
-                None => return Err(anyhow!("No matching peer for {} ... ?", packet.source)),
-                Some(peer) => peer,
-            };
-            Ok(peer.process_packet(packet)?)
+    fn get_or_create_peer(&mut self, address: SocketAddr) -> &mut Peer {
+        if self.peers.contains_key(&address) {
+            self.peers.get_mut(&address).unwrap()
         } else {
-            // this would occur only if no init packet has been found yet. as such, this is
-            // probably non-PSO packet stuff we don't care about
-            Ok(None)
+            println!("Encountered new peer: {}\n", address);
+            let new_peer = Peer::new(address);
+            self.peers.insert(address, new_peer);
+            self.get_or_create_peer(address)
         }
+    }
+
+    pub fn process_packet(&mut self, packet: TcpDataPacket) -> Result<()> {
+        if packet.tcp_rst {
+            println!(
+                "Encountered TCP RST. Removing peers {} and {}.\n",
+                packet.source, packet.destination
+            );
+            self.peers.remove(&packet.source);
+            self.peers.remove(&packet.destination);
+        } else if packet.tcp_fin {
+            println!("Peer {} sent TCP FIN. Removing peer.\n", packet.source);
+            self.peers.remove(&packet.source);
+        } else if let Some(init_packet) = packet.as_init_encryption_packet() {
+            println!(
+                "Encountered InitEncryptionPacket sent from peer {}. Starting new session.",
+                packet.source
+            );
+
+            // the "init packet" indicates the start of a PSO client/server session. this could
+            // occur multiple times within the same pcap file as a client moves between different
+            // servers (e.g. from login server to ship server, switching between ships, etc).
+
+            println!(
+                "Treating peer {} as the client, setting client decryption key: {:#010x}",
+                packet.destination,
+                init_packet.client_key()
+            );
+
+            let client = self.get_or_create_peer(packet.destination);
+            client.init_pso_session(init_packet.client_key);
+
+            println!(
+                "Treating peer {} as the server, setting server decryption key: {:#010x}",
+                packet.source,
+                init_packet.server_key()
+            );
+
+            let server = self.get_or_create_peer(packet.source);
+            server.init_pso_session(init_packet.server_key);
+            server.push_pso_packet(
+                init_packet
+                    .try_into()
+                    .context("Failed to convert InitEncryptionPacket into GenericPacket")?,
+            );
+
+            println!();
+        } else {
+            // process the packet via the peer it was sent from
+            let peer = self.get_or_create_peer(packet.source);
+            peer.process_packet(packet)
+                .with_context(|| format!("Failed to process packet for peer {:?}", peer))?;
+        }
+
+        Ok(())
     }
 }
 
 pub fn analyze(path: &Path) -> Result<()> {
     println!("Opening capture file: {}", path.to_string_lossy());
 
-    let mut cap: Capture<Offline> = Capture::from_file(path)?.into();
-    cap.filter("tcp")?;
+    let mut cap: Capture<Offline> = Capture::from_file(path)
+        .with_context(|| format!("Failed to open capture file: {:?}", path))?
+        .into();
+    cap.filter("tcp")
+        .context("Failed to apply 'tcp' filter to opened capture")?;
 
-    let mut context = Context::new();
+    let mut session = Session::new();
 
     let hex_cfg = HexConfig {
         title: false,
@@ -274,28 +319,39 @@ pub fn analyze(path: &Path) -> Result<()> {
         ..HexConfig::default()
     };
 
+    println!("Beginning analysis ...\n");
+
     while let Ok(raw_packet) = cap.next() {
         if let Ok(decoded_packet) = PacketHeaders::from_ethernet_slice(raw_packet.data) {
             if let Ok(our_packet) = TcpDataPacket::try_from(decoded_packet) {
                 println!(
-                    ">>>> packet - ts: {}.{}, from: {:?}, to: {:?}, length: {}\n",
-                    raw_packet.header.ts.tv_sec,
-                    raw_packet.header.ts.tv_usec,
-                    our_packet.source,
-                    our_packet.destination,
-                    our_packet.data.len()
+                    ">>>> packet at ts: {}.{} - {:?}\n",
+                    raw_packet.header.ts.tv_sec, raw_packet.header.ts.tv_usec, our_packet
                 );
-                if let Some(pso_packet) = context.process(our_packet)? {
-                    println!(
-                        "id={:#04x}, flags={:#04x}, size={}",
-                        pso_packet.packet.header.id(),
-                        pso_packet.packet.header.flags(),
-                        pso_packet.packet.header.size()
-                    );
-                    if pso_packet.packet.body.is_empty() {
-                        println!("<No data>");
-                    } else {
-                        println!("{:?}", pso_packet.packet.body.hex_conf(hex_cfg));
+
+                let peer_address = our_packet.source;
+
+                session.process_packet(our_packet).with_context(|| {
+                    format!(
+                        "Session failed to process packet at ts: {}.{}",
+                        raw_packet.header.ts.tv_sec, raw_packet.header.ts.tv_usec
+                    )
+                })?;
+
+                if let Some(peer) = session.get_peer(peer_address) {
+                    while let Some(pso_packet) = peer.next() {
+                        println!(
+                            "id={:#04x}, flags={:#04x}, size={} ({2:#x})",
+                            pso_packet.header.id(),
+                            pso_packet.header.flags(),
+                            pso_packet.header.size()
+                        );
+                        if pso_packet.body.is_empty() {
+                            println!("<No data>");
+                        } else {
+                            println!("{:?}", pso_packet.body.hex_conf(hex_cfg));
+                        }
+                        println!();
                     }
                 }
             } else {
@@ -310,8 +366,6 @@ pub fn analyze(path: &Path) -> Result<()> {
                 raw_packet.header
             );
         }
-
-        println!();
     }
 
     Ok(())
