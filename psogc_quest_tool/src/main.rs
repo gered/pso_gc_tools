@@ -29,17 +29,17 @@ fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         display_help();
+    } else {
+        let command = &args[1];
+        let remaining_args = &args[2..];
+        match command.to_lowercase().as_str() {
+            "info" => quest_info(&remaining_args)?,
+            "convert" => quest_convert(&remaining_args)?,
+            _ => {
+                println!("Unrecognized command");
+                display_help();
+            }
+        };
     }
-    let command = &args[1];
-    let remaining_args = &args[2..];
-    match command.to_lowercase().as_str() {
-        "info" => quest_info(&remaining_args)?,
-        "convert" => quest_convert(&remaining_args)?,
-        _ => {
-            println!("Unrecognized command");
-            display_help();
-        }
-    };
-
     Ok(())
 }
