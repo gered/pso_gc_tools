@@ -33,6 +33,10 @@ pub struct PacketHeader {
 }
 
 impl PacketHeader {
+    pub const fn header_size() -> usize {
+        std::mem::size_of::<Self>()
+    }
+
     pub fn from_bytes<T: ReadBytesExt>(reader: &mut T) -> Result<PacketHeader, PacketError>
     where
         Self: Sized,
@@ -56,5 +60,32 @@ impl PacketHeader {
 
     pub fn size(&self) -> u16 {
         self.size
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GenericPacket {
+    pub header: PacketHeader,
+    pub body: Box<[u8]>,
+}
+
+impl GenericPacket {
+    pub fn new(header: PacketHeader, body: Box<[u8]>) -> GenericPacket {
+        GenericPacket { header, body }
+    }
+
+    pub fn from_bytes<T: ReadBytesExt>(reader: &mut T) -> Result<GenericPacket, PacketError> {
+        let header = PacketHeader::from_bytes(reader)?;
+        let data_length = header.size as usize - PacketHeader::header_size();
+        let mut body = vec![0u8; data_length];
+        reader.read_exact(&mut body)?;
+        Ok(GenericPacket {
+            header,
+            body: body.into(),
+        })
+    }
+
+    pub fn size(&self) -> usize {
+        self.header.size as usize + self.body.len()
     }
 }
