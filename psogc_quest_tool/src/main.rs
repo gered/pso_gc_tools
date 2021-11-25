@@ -16,11 +16,20 @@ fn display_help() {
     println!("USAGE: psogc_quest_tool <COMMAND> <ARGS...>\n");
     println!("COMMANDS:");
     println!("  info    - Displays info about a quest.");
-    println!("            - info <input.bin> <input.dat>");
-    println!("            - info <input.qst>");
+    println!("             - info <input.bin> <input.dat>");
+    println!("             - info <input.qst>");
     println!("  convert - Converts a quest to a different file format");
-    println!("            - convert <input bin+dat or qst> <format_type> <output bin+dat or qst>");
-    println!("            Where format_type should be one of: raw_bindat, prs_bindat, online_qst, offline_qst");
+    println!("             - convert <input files> <output_format_type> <output files>");
+    println!("            Where the arguments:");
+    println!("             - \"input files\" and \"output files\" should either be:");
+    println!("                a) two files, a .bin and .dat file; or");
+    println!("                b) a single .qst file");
+    println!("             - \"output_format_type\" should be one of: ");
+    println!("                - raw_bindat (produces a .bin and .dat, both uncompressed)");
+    println!("                - prs_bindat (produces a .bin and .dat, both PRS compressed)");
+    println!("                - online_qst (produces a .qst, for online play via a server)");
+    println!("                - offline_qst (produces a .qst, for offline play from a mem");
+    println!("                               card when downloaded from a server)");
 }
 
 fn main() -> Result<()> {
