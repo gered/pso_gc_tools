@@ -1,3 +1,9 @@
+/*
+ * The contents of this module are ported from the Fuzziqer "newserv" project with some minor
+ * alterations by me.
+ * https://github.com/fuzziqersoftware/newserv (PSOEncryption.cc + PSOEncryption.hh)
+ */
+
 const PC_STREAM_LENGTH: usize = 57;
 const GC_STREAM_LENGTH: usize = 521;
 

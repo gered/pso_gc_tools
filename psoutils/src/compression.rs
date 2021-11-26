@@ -1,3 +1,9 @@
+/*
+ * The contents of this module are ported from the Fuzziqer "newserv" project with some minor
+ * alterations by me.
+ * https://github.com/fuzziqersoftware/newserv (Compression.cc + Compression.hh)
+ */
+
 use std::ffi::c_void;
 
 use thiserror::Error;
