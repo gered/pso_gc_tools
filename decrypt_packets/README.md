@@ -22,9 +22,26 @@ This tool reads `.pcap` or `.pcapng` files produced by a capture tool, such as [
 decrypt_packets /path/to/capture.pcapng
 ```
 
-It is probably important that your capture does not include anything else other than PSO Gamecube packet data. This
-tool has **not** been tested against more broad captures which include a whole bunch of other intermingled packets
-for other non-PSO things.
+### Caveats
+
+It is _probably_ unlikely that you can just throw **any** capture file at this tool and expect it to work.
+
+For best results, you should try to limit your capture so that it includes PSO client/server communication only. This 
+tool does internally apply a `"tcp"` [pcap filter](https://biot.com/capstats/bpf.html) (meaning that it will ignore any
+UDP packets present in a capture, for example), but afterwards it will look at every TCP packet it finds and try to
+find the start of two peers communicating using the PSO network protocol. It does this by inspecting each TCP packet
+and checking for one that contains a 0x02 or 0x17 packet. When found, those two peers get marked as a PSO client and
+server and then all subsequent packets sent from either of them are interpreted as PSO network communication and packets
+between them will be decrypted using the key information from that first 0x02 or 0x17 packet.
+
+With this in mind, this tool _might_ be able to work with captures containing PSO network communication as well as a
+bunch of other intermingled TCP packets for other things all jumbled together. But this is not a scenario I have
+tested at all, so I make no promises!
+
+This tool is also probably not properly dealing with a bunch of different TCP packet/connection scenarios. Noteably,
+it does not handle retransmissions and a capture containing these will cause this tool to mess up. In such a scenario,
+you could easily filter the retransmissions out via Wireshark by applying this filter `!(tcp.analysis.retransmission or tcp.analysis.fast_retransmission)`
+and then re-exporting the capture.
 
 ### Capturing Packets from PSO
 
