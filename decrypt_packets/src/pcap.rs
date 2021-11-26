@@ -342,7 +342,7 @@ pub fn analyze(path: &Path) -> Result<()> {
                 if let Some(peer) = session.get_peer(peer_address) {
                     while let Some(pso_packet) = peer.next() {
                         println!(
-                            "id={:#04x}, flags={:#04x}, size={} ({2:#x})",
+                            "id=0x{:02x}, flags=0x{:02x}, size={} (0x{2:04x})",
                             pso_packet.header.id(),
                             pso_packet.header.flags(),
                             pso_packet.header.size()
