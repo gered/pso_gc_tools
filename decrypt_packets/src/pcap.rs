@@ -347,11 +347,13 @@ pub fn analyze(path: &Path) -> Result<()> {
                             pso_packet.header.flags(),
                             pso_packet.header.size()
                         );
-                        if pso_packet.body.is_empty() {
-                            println!("<No data>");
-                        } else {
-                            println!("{:?}", pso_packet.body.hex_conf(hex_cfg));
-                        }
+
+                        // get full packet bytes for the hex dump since it is probably useful most
+                        // of the time to include the header bytes alongside the body
+                        // TODO: this feels sloppy ...
+                        let mut packet_bytes = Vec::new();
+                        pso_packet.write_bytes(&mut packet_bytes)?;
+                        println!("{:?}", packet_bytes.hex_conf(hex_cfg));
                         println!();
                     }
                 }

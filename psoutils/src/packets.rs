@@ -90,6 +90,12 @@ impl GenericPacket {
         })
     }
 
+    pub fn write_bytes<T: WriteBytesExt>(&self, writer: &mut T) -> Result<(), PacketError> {
+        self.header.write_bytes(writer)?;
+        writer.write_all(self.body.as_ref())?;
+        Ok(())
+    }
+
     pub fn size(&self) -> usize {
         self.header.size as usize + self.body.len()
     }
